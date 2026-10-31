@@ -3,43 +3,28 @@
 Liste de courses partagée pour la maison. Elle range chaque produit dans son rayon, apprend votre rythme d'achat et vous propose ce qu'il est temps de racheter.
 
 - Page statique hébergée sur GitHub Pages : `index.html`, `style.css`, `app.js`, `logic.js`.
-- Données dans un projet Supabase dédié (table `items`), visibles uniquement par les adresses de la table `members`.
-- Connexion par code à 6 chiffres reçu par e-mail. Un code plutôt qu'un lien : sur iPhone, un lien s'ouvrirait dans Safari et non dans l'appli de l'écran d'accueil.
+- Données dans le projet Supabase `nos-courses` (organisation Perso, forfait gratuit, Europe).
+- Seules les adresses de la table `members` lisent et écrivent la liste (règles d'accès dans `supabase/schema.sql`).
+- Connexion par e-mail et mot de passe. Un seul e-mail de confirmation à la création du compte.
 
-## Mise en place (une seule fois)
+Appli en ligne : https://dlaera1-hash.github.io/nos-courses/
 
-### 1. Projet Supabase
+## Première connexion (chacun, une fois)
 
-1. Sur [supabase.com](https://supabase.com), crée un nouveau projet gratuit `nos-courses`, région Europe.
-2. **SQL Editor** > New query : colle `supabase/schema.sql`, remplace les 2 adresses e-mail en haut, puis Run.
-3. **Authentication > Users** > Add user > Create new user : crée ton adresse, puis celle de ta compagne. Coche « Auto Confirm User ». Le mot de passe est inutile.
-4. **Authentication > Sign In / Providers** : laisse Email activé et désactive « Allow new users to sign up ». Personne d'autre ne pourra créer de compte.
-5. **Authentication > Emails > Templates > Magic Link** : remplace le contenu par le modèle ci-dessous, pour que l'e-mail contienne le code.
+1. Sur l'iPhone, ouvre l'adresse dans **Safari**, puis Partager > **Sur l'écran d'accueil**.
+2. Ouvre l'appli depuis l'icône, touche « Première fois ? Créer mon mot de passe », saisis ton e-mail et un mot de passe.
+3. Ouvre l'e-mail de confirmation de Supabase et touche le lien.
+4. Reviens dans l'appli et connecte-toi. L'iPhone peut mémoriser le mot de passe.
 
-   ```html
-   <h2>Ton code pour Nos courses</h2>
-   <p style="font-size:28px;letter-spacing:6px"><strong>{{ .Token }}</strong></p>
-   <p>Il expire dans une heure.</p>
-   ```
-
-6. **Project Settings > API Keys** : copie l'URL du projet et la clé publique (`sb_publishable_...`, ou l'ancienne clé `anon`) dans `config.js`. Jamais la clé secrète.
-
-### 2. GitHub Pages
-
-1. Pousse le dépôt sur GitHub (dépôt public `nos-courses`).
-2. **Settings > Pages** : Source « Deploy from a branch », branche `main`, dossier `/ (root)`.
-3. L'appli est alors en ligne à `https://<ton-compte>.github.io/nos-courses/`.
-
-### 3. Sur l'iPhone
-
-1. Ouvre l'adresse dans **Safari**, puis Partager > **Sur l'écran d'accueil**.
-2. Ouvre l'appli depuis l'icône, saisis ton e-mail, puis le code reçu.
+Une fois vos 2 comptes créés, ferme les inscriptions : Supabase > Authentication > Sign In / Providers > désactiver « Allow new users to sign up », puis Save. Les inscriptions ouvertes ne donnent accès à rien (seule la table `members` compte), mais autant fermer la porte.
 
 ## Bon à savoir
 
 - Le forfait gratuit de Supabase met en pause un projet resté 7 jours sans activité. Il se relance depuis le tableau de bord.
-- L'envoi d'e-mails par défaut de Supabase est limité à quelques messages par heure. Ça suffit pour 2 personnes qui se connectent une fois.
-- Ajouter un membre : insère son adresse dans `members` (SQL Editor) et crée son compte dans Authentication > Users.
+- L'envoi d'e-mails par défaut de Supabase est limité à quelques messages par heure. Suffisant pour 2 comptes.
+- Mot de passe oublié : Supabase > Authentication > Users > l'utilisateur > Send password recovery.
+- Ajouter un membre : insère son adresse dans `members` (SQL Editor) et rouvre les inscriptions le temps qu'il crée son compte.
+- `config.js` contient l'adresse du projet et la clé publique (`sb_publishable_...`). Elles sont faites pour être visibles. Ne jamais y mettre la clé secrète.
 
 ## Tests
 

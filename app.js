@@ -25,44 +25,53 @@ const sb = SUPABASE_URL && SUPABASE_KEY && window.supabase
   : null;
 
 // ---------- Connexion ----------
-let loginEmail = "";
+// Mode "signup" : première connexion, la personne choisit son mot de passe.
+let mode = "signin";
 
 function showLogin(msg) {
   $("app").hidden = true; $("dock").hidden = true; $("login").hidden = false;
-  $("emailform").hidden = false; $("codeform").hidden = true;
+  setMode("signin");
   setLoginStatus(msg || "");
+}
+function setMode(m) {
+  mode = m;
+  const signup = m === "signup";
+  $("loginbtn").textContent = signup ? "Créer mon mot de passe" : "Se connecter";
+  $("togglemode").textContent = signup ? "J'ai déjà un mot de passe" : "Première fois ? Créer mon mot de passe";
+  $("password").autocomplete = signup ? "new-password" : "current-password";
+  setLoginStatus("");
 }
 function setLoginStatus(msg, warn = true) { const s = $("loginstatus"); s.textContent = msg; s.classList.toggle("warn", warn && !!msg); }
 
-$("emailform").addEventListener("submit", async (e) => {
+$("togglemode").addEventListener("click", () => setMode(mode === "signin" ? "signup" : "signin"));
+
+$("loginform").addEventListener("submit", async (e) => {
   e.preventDefault();
-  loginEmail = $("email").value.trim().toLowerCase();
-  if (!loginEmail) return;
-  $("emailbtn").disabled = true; setLoginStatus("Envoi du code…", false);
-  // shouldCreateUser: false -> seules les adresses déjà créées dans Supabase reçoivent un code.
-  const { error } = await sb.auth.signInWithOtp({ email: loginEmail, options: { shouldCreateUser: false } });
-  $("emailbtn").disabled = false;
+  const email = $("email").value.trim().toLowerCase();
+  const password = $("password").value;
+  if (!email || !password) return;
+  $("loginbtn").disabled = true;
+  setLoginStatus(mode === "signup" ? "Création du compte…" : "Connexion…", false);
+  const { data, error } = mode === "signup"
+    ? await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })
+    : await sb.auth.signInWithPassword({ email, password });
+  $("loginbtn").disabled = false;
   if (error) {
-    setLoginStatus(/signups not allowed|not found|otp_disabled/i.test(error.message)
-      ? "Cette adresse n'a pas accès à la liste."
-      : /rate|seconds/i.test(error.message) ? "Trop de demandes, patiente une minute puis réessaie." : "Envoi impossible pour l'instant, réessaie.");
+    const m = error.message || "";
+    if (/not confirmed/i.test(m)) setLoginStatus("Confirme d'abord ton adresse : touche le lien de l'e-mail reçu à la création du compte.");
+    else if (/invalid login credentials/i.test(m)) setLoginStatus("Adresse ou mot de passe incorrect. Première fois ? Crée d'abord ton mot de passe.");
+    else if (/already registered|already exists/i.test(m)) { setMode("signin"); setLoginStatus("Ce compte existe déjà : connecte-toi avec ton mot de passe."); }
+    else if (/signups? not allowed|disabled/i.test(m)) setLoginStatus("Les inscriptions sont fermées. Demande à David d'ajouter ton adresse.");
+    else if (/password/i.test(m)) setLoginStatus("Mot de passe trop faible : 8 caractères minimum.");
+    else if (/rate|seconds/i.test(m)) setLoginStatus("Trop de tentatives, patiente une minute puis réessaie.");
+    else setLoginStatus("Connexion impossible pour l'instant, réessaie.");
     return;
   }
-  $("emailform").hidden = true; $("codeform").hidden = false;
-  $("codehint").textContent = `Saisis le code envoyé à ${loginEmail}`;
-  setLoginStatus(""); $("code").value = ""; $("code").focus();
+  if (mode === "signup" && !data.session) {
+    setMode("signin");
+    setLoginStatus("Compte créé. Ouvre l'e-mail de confirmation reçu, touche le lien, puis reviens ici te connecter avec ton mot de passe.", false);
+  }
 });
-
-$("codeform").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const token = $("code").value.replace(/\s/g, "");
-  if (!token) return;
-  $("codebtn").disabled = true; setLoginStatus("Vérification…", false);
-  const { error } = await sb.auth.verifyOtp({ email: loginEmail, token, type: "email" });
-  $("codebtn").disabled = false;
-  if (error) setLoginStatus("Code incorrect ou expiré. Vérifie-le ou demande-en un nouveau.");
-});
-$("backbtn").addEventListener("click", () => showLogin());
 $("logout").addEventListener("click", async () => { await sb.auth.signOut(); });
 
 // ---------- Données ----------
@@ -291,7 +300,7 @@ function stopApp() {
 }
 
 if (!sb) {
-  $("login").hidden = false; $("emailform").hidden = true;
+  $("login").hidden = false; $("loginform").hidden = true;
   setLoginStatus(window.supabase ? "Il manque l'adresse ou la clé Supabase dans config.js." : "Impossible de charger Supabase. Vérifie ta connexion.");
 } else {
   sb.auth.onAuthStateChange((_event, session) => {

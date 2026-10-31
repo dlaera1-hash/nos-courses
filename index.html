@@ -19,22 +19,19 @@
 </head>
 <body>
 
-<!-- Connexion par code reçu par e-mail -->
+<!-- Connexion par e-mail et mot de passe -->
 <div class="wrap login" id="login" hidden>
   <section class="block">
     <h2>Nos courses</h2>
     <div class="sub">La liste partagée de la maison</div>
   </section>
-  <form id="emailform" autocomplete="on">
-    <label class="hint" for="email">Ton adresse e-mail</label>
-    <input class="field" id="email" type="email" inputmode="email" autocomplete="email" required placeholder="prenom@exemple.fr">
-    <button class="btn dark" type="submit" id="emailbtn">Recevoir un code</button>
-  </form>
-  <form id="codeform" hidden>
-    <label class="hint" for="code" id="codehint">Saisis le code reçu par e-mail</label>
-    <input class="field code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="••••••">
-    <button class="btn dark" type="submit" id="codebtn">Valider</button>
-    <button class="btn" type="button" id="backbtn">Changer d'adresse</button>
+  <form id="loginform" autocomplete="on">
+    <label class="hint" for="email">Adresse e-mail</label>
+    <input class="field" id="email" name="email" type="email" inputmode="email" autocomplete="username" required placeholder="prenom@exemple.fr">
+    <label class="hint" for="password">Mot de passe</label>
+    <input class="field" id="password" name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="8 caractères minimum">
+    <button class="btn dark" type="submit" id="loginbtn">Se connecter</button>
+    <button class="btn" type="button" id="togglemode">Première fois ? Créer mon mot de passe</button>
   </form>
   <p class="status" id="loginstatus"></p>
 </div>

@@ -5,5 +5,5 @@
 // Ces deux valeurs sont faites pour être visibles dans une page web : la protection vient
 // des règles d'accès de supabase/schema.sql. Ne mets JAMAIS ici la clé "secret" ou "service_role".
 
-export const SUPABASE_URL = "";
-export const SUPABASE_KEY = "";
+export const SUPABASE_URL = "https://sgcryawqbrudljmxzskn.supabase.co";
+export const SUPABASE_KEY = "sb_publishable_P4yVOyoa80iAfyUvYcEVYA_XkUkFB_w";
