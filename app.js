@@ -2,10 +2,7 @@
 import { DAY, RAYONS, RAYON_EMOJI, guessRayon, emojiFor, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
-const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-const WEEK_COLORS = ["var(--green)", "var(--orange)", "var(--pink)", "var(--yellow)", "var(--lavender)", "var(--sky)", "var(--lime)"];
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
-const BASKET = '<svg viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-2 10H6z"/><path d="M9 9l3-5 3 5"/></svg>';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -158,23 +155,6 @@ function finishShopping() {
 }
 
 // ---------- Rendu ----------
-function renderWeek(all, now) {
-  const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
-  const dow = (d0.getDay() + 6) % 7;
-  const monday = new Date(d0); monday.setDate(d0.getDate() - dow);
-  const days = [0, 1, 2, 3, 4, 5, 6].map((i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
-  const hits = new Set();
-  for (const p of all) for (const t of p.purchases || []) {
-    const d = new Date(t); d.setHours(0, 0, 0, 0);
-    const i = days.findIndex((x) => x.getTime() === d.getTime());
-    if (i >= 0) hits.add(i);
-  }
-  $("week").innerHTML = days.map((d, i) => {
-    const hit = hits.has(i);
-    return `<div class="day${hit ? " hit" : ""}${i === dow ? " today" : ""}"><span class="c" style="${hit ? `background:${WEEK_COLORS[i]}` : ""}">${hit ? BASKET : ""}</span>${DAYS[d.getDay()]}<b>${d.getDate()}</b></div>`;
-  }).join("");
-}
-
 function render() {
   const now = Date.now();
   const all = [...state.items.values()];
@@ -186,7 +166,6 @@ function render() {
   $("badge").hidden = !(state.loaded && onList.length);
   $("count").textContent = `${onList.length} à acheter`;
   $("known").innerHTML = all.map((p) => `<option value="${esc(p.name)}">`).join("");
-  renderWeek(all, now);
 
   const soon = off.map((p) => ({ p, c: cadence(p, now) })).filter((x) => x.c && x.c.due).sort((a, b) => a.c.next - b.c.next);
   $("soon").hidden = !soon.length;
