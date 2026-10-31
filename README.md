@@ -26,6 +26,14 @@ Une fois vos 2 comptes créés, ferme les inscriptions : Supabase > Authenticati
 - Ajouter un membre : insère son adresse dans `members` (SQL Editor) et rouvre les inscriptions le temps qu'il crée son compte.
 - `config.js` contient l'adresse du projet et la clé publique (`sb_publishable_...`). Elles sont faites pour être visibles. Ne jamais y mettre la clé secrète.
 
+## Publier une modification
+
+GitHub Pages laisse les téléphones garder chaque fichier 10 minutes en cache. Avant chaque commit qui change l'appli, donne un nouveau numéro de version aux fichiers, pour qu'une page récente ne charge jamais un script ancien :
+
+```bash
+sh scripts/version.sh
+```
+
 ## Tests
 
 ```bash

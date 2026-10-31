@@ -1,6 +1,6 @@
 // Écran et synchronisation avec Supabase.
-import { DAY, RAYONS, RAYON_EMOJI, guessRayon, emojiFor, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
+import { DAY, RAYONS, RAYON_EMOJI, guessRayon, emojiFor, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261031180922";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261031180922";
 
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
 
