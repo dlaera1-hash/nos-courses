@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Nos courses</title>
+  <meta name="theme-color" content="#ECECEF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Courses">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Connexion par code reçu par e-mail -->
+<div class="wrap login" id="login" hidden>
+  <section class="block">
+    <h2>Nos courses</h2>
+    <div class="sub">La liste partagée de la maison</div>
+  </section>
+  <form id="emailform" autocomplete="on">
+    <label class="hint" for="email">Ton adresse e-mail</label>
+    <input class="field" id="email" type="email" inputmode="email" autocomplete="email" required placeholder="prenom@exemple.fr">
+    <button class="btn dark" type="submit" id="emailbtn">Recevoir un code</button>
+  </form>
+  <form id="codeform" hidden>
+    <label class="hint" for="code" id="codehint">Saisis le code reçu par e-mail</label>
+    <input class="field code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="••••••">
+    <button class="btn dark" type="submit" id="codebtn">Valider</button>
+    <button class="btn" type="button" id="backbtn">Changer d'adresse</button>
+  </form>
+  <p class="status" id="loginstatus"></p>
+</div>
+
+<!-- Appli -->
+<div class="wrap" id="app" hidden>
+  <header>
+    <div class="hello">
+      <h1>Nos courses</h1>
+      <span class="date" id="date"></span>
+    </div>
+    <span class="badge" id="badge" hidden><span class="dot"></span><span id="count"></span></span>
+  </header>
+  <div class="status" id="status"></div>
+
+  <div class="week" id="week" aria-label="Jours de courses cette semaine"></div>
+
+  <form class="addbar" id="addform" autocomplete="off">
+    <input class="field" id="addinput" list="known" placeholder="Lait, 2 baguettes…" aria-label="Ajouter un produit">
+    <datalist id="known"></datalist>
+    <button class="addbtn" type="submit" aria-label="Ajouter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </form>
+
+  <section class="block soon" id="soon" hidden>
+    <svg class="squiggle" viewBox="0 0 120 120" fill="none" stroke="#141414" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M20 70c10-30 40-40 50-20s-25 35-30 15 30-40 50-25 0 40-20 35-10-30 15-35 30 10 20 30"/></svg>
+    <div class="block-head"><div><h2>À racheter<br>bientôt</h2><div class="sub">D'après votre rythme d'achat</div></div></div>
+    <div class="chips" id="soonchips"></div>
+  </section>
+
+  <div class="list" id="list"></div>
+
+  <section class="block cart" id="cartsec" hidden>
+    <div class="block-head"><div><h2>Dans le caddie</h2><div class="sub">Touche un produit pour le remettre sur la liste</div></div><span class="n" id="cartcount"></span></div>
+    <ul id="cart"></ul>
+  </section>
+
+  <details class="catalog" id="catsec">
+    <summary><h2>Nos produits habituels</h2><span class="n" id="catcount">0</span></summary>
+    <div class="cat" id="cat"></div>
+  </details>
+
+  <div class="foot"><button type="button" id="logout">Se déconnecter</button></div>
+</div>
+
+<div class="dock" id="dock" hidden><button id="finish" type="button">Terminer les courses <span class="n" id="docknum"></span></button></div>
+<div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo" type="button">Annuler</button></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
