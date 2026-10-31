@@ -1,6 +1,6 @@
 // Tests de la logique pure : node tests/logic.test.mjs
 import assert from "node:assert/strict";
-import { DAY, guessRayon, parseInput, slug, cadence, fromRow, toRow, every } from "../logic.js";
+import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every } from "../logic.js";
 
 const now = Date.UTC(2026, 9, 31);
 let n = 0;
@@ -14,6 +14,17 @@ t("rayons", () => {
     "Œufs": "cremerie", "Brosse à dents": "hygiene", "Lessive": "entretien", "Pizza": "surgeles", "Bougies": "autre",
   };
   for (const [name, r] of Object.entries(cases)) assert.equal(guessRayon(name), r, name);
+});
+
+t("emojis", () => {
+  const cases = {
+    "Lessive": "🧺", "Liquide vaisselle": "🍽️", "Éponges": "🧽", "Lait": "🥛", "Laitue": "🥬", "Pommes de terre": "🥔",
+    "Pommes": "🍎", "Pâte à tartiner": "🍫", "Pâtes": "🍝", "Thon": "🐟", "Thé vert": "🍵", "Œufs": "🥚", "Eau gazeuse": "💧",
+    "Ailes de poulet": "🍗", "Papier toilette": "🧻", "Café": "☕",
+  };
+  for (const [name, e] of Object.entries(cases)) assert.equal(emojiFor(name, guessRayon(name)), e, name);
+  assert.equal(emojiFor("Bougies", "autre"), "🛒");
+  assert.equal(emojiFor("Produit inconnu", "entretien"), "🧽");
 });
 
 t("saisie avec quantité", () => {

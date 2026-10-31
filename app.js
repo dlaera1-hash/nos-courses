@@ -1,12 +1,7 @@
 // Écran et synchronisation avec Supabase.
-import { DAY, RAYONS, STARTER, guessRayon, slug, parseInput, cadence, ago, every, fromRow, toRow } from "./logic.js";
+import { DAY, RAYONS, RAYON_EMOJI, guessRayon, emojiFor, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
-const RAYON_COLOR = {
-  "fruits-legumes": "var(--green)", "boulangerie": "var(--yellow)", "cremerie": "var(--lavender)", "boucherie": "var(--pink)",
-  "epicerie-salee": "var(--orange)", "epicerie-sucree": "var(--sky)", "surgeles": "var(--blue)", "boissons": "var(--teal)",
-  "hygiene": "var(--lime)", "entretien": "var(--lilac)", "autre": "var(--grey)",
-};
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 const WEEK_COLORS = ["var(--green)", "var(--orange)", "var(--pink)", "var(--yellow)", "var(--lavender)", "var(--sky)", "var(--lime)"];
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
@@ -15,6 +10,7 @@ const BASKET = '<svg viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-wid
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const qtyTag = (p) => (p.qty ? `<span class="qty">×${p.qty}</span>` : "");
+const emo = (p) => `<span class="emo" aria-hidden="true">${emojiFor(p.name, p.rayon)}</span>`;
 const byName = (a, b) => a.name.localeCompare(b.name, "fr");
 
 const state = { items: new Map(), loaded: false, channel: null, started: false };
@@ -147,15 +143,6 @@ function addByName(raw) {
   });
 }
 
-function addStarter() {
-  const now = Date.now();
-  const rows = STARTER.map((name) => ({ id: slug(name), ...toRow({ name, rayon: guessRayon(name), onList: false, inCart: false, qty: null, purchases: [], addedAt: now, updatedAt: now }) }))
-    .filter((r) => !state.items.has(r.id));
-  for (const r of rows) state.items.set(r.id, fromRow(r));
-  render(); $("catsec").open = true;
-  write("__starter", () => sb.from("items").upsert(rows, { onConflict: "id", ignoreDuplicates: true }));
-}
-
 function finishShopping() {
   const now = Date.now();
   const bought = [...state.items.values()].filter((p) => p.onList && p.inCart);
@@ -203,39 +190,26 @@ function render() {
 
   const soon = off.map((p) => ({ p, c: cadence(p, now) })).filter((x) => x.c && x.c.due).sort((a, b) => a.c.next - b.c.next);
   $("soon").hidden = !soon.length;
-  $("soonchips").innerHTML = soon.map(({ p, c }) => `<span class="chip"><span>${esc(p.name)}<span class="why">${every(c.median)}</span></span><button class="add" data-act="add" data-id="${esc(p.id)}" type="button">Ajouter</button><button class="skip" data-act="snooze" data-id="${esc(p.id)}" type="button" aria-label="Pas besoin pour ${esc(p.name)}">Pas besoin</button></span>`).join("");
+  $("soonchips").innerHTML = soon.map(({ p, c }) => `<span class="chip"><span>${emo(p)}${esc(p.name)}<span class="why">${every(c.median)}</span></span><button class="add" data-act="add" data-id="${esc(p.id)}" type="button">Ajouter</button><button class="skip" data-act="snooze" data-id="${esc(p.id)}" type="button" aria-label="Pas besoin pour ${esc(p.name)}">Pas besoin</button></span>`).join("");
 
   if (!state.loaded) $("list").innerHTML = "";
   else if (!all.length) {
-    $("list").innerHTML = `<section class="block empty"><h2>La liste est vide</h2><p>Tape un produit en haut : il se range tout seul dans son rayon. Au fil des courses, l'appli retient votre rythme et vous rappelle quoi racheter.</p><button class="btn" data-act="starter" type="button">Démarrer avec des produits courants</button></section>`;
+    $("list").innerHTML = `<section class="block empty"><h2>La liste est vide</h2><p>Tape un produit en haut : il se range tout seul dans son rayon. Au fil des courses, l'appli retient votre rythme et vous rappelle quoi racheter.</p></section>`;
   } else if (!onList.length) {
-    $("list").innerHTML = `<section class="block empty calm"><h2>Rien à acheter</h2><p>Ajoute un produit en haut, ou pioche dans vos produits habituels plus bas.</p></section>`;
+    $("list").innerHTML = `<section class="block empty calm"><h2>Rien à acheter</h2><p>Ajoute un produit en haut. Tes anciens produits s'affichent dans la saisie quand tu commences à taper.</p></section>`;
   } else {
     $("list").innerHTML = RAYONS.map(([r, label]) => {
       const items = onList.filter((p) => (p.rayon || "autre") === r).sort(byName);
       if (!items.length) return "";
-      return `<section class="block r-${r}"><div class="block-head"><h2>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${esc(p.name)}${qtyTag(p)}</span></button><button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
+      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}${qtyTag(p)}</span></button><button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
     }).join("");
   }
 
   $("cartsec").hidden = !inCart.length;
   $("cartcount").textContent = inCart.length;
-  $("cart").innerHTML = inCart.sort(byName).map((p) => `<li class="row"><button class="tick" data-act="uncart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${esc(p.name)}${qtyTag(p)}</span></button></li>`).join("");
+  $("cart").innerHTML = inCart.sort(byName).map((p) => `<li class="row"><button class="tick" data-act="uncart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}${qtyTag(p)}</span></button></li>`).join("");
   $("dock").hidden = !inCart.length;
   $("docknum").textContent = inCart.length;
-
-  $("catcount").textContent = off.length;
-  $("cat").innerHTML = off.length ? RAYONS.map(([r, label]) => {
-    const items = off.filter((p) => (p.rayon || "autre") === r).sort(byName);
-    if (!items.length) return "";
-    return `<div><div class="cat-head"><i style="background:${RAYON_COLOR[r]}"></i>${label}</div><ul>${items.map((p) => {
-      const c = cadence(p, now);
-      const last = (p.purchases || []).length ? Math.max(...p.purchases) : null;
-      const sub = [last ? `acheté ${ago(last, now)}` : "jamais acheté", c ? every(c.median) : ""].filter(Boolean).join(" · ");
-      const opts = RAYONS.map(([v, l]) => `<option value="${v}"${v === (p.rayon || "autre") ? " selected" : ""}>${l}</option>`).join("");
-      return `<li class="row"><div class="meta"><div class="label">${esc(p.name)}</div><div class="s">${sub}</div></div><select data-act="rayon" data-id="${esc(p.id)}" aria-label="Rayon de ${esc(p.name)}">${opts}</select><button class="plus" data-act="add" data-id="${esc(p.id)}" type="button">Ajouter</button><button class="del" data-act="del" data-id="${esc(p.id)}" type="button">Supprimer</button></li>`;
-    }).join("")}</ul></div>`;
-  }).join("") : `<p class="cat-empty">Les produits achetés ou retirés de la liste se retrouvent ici.</p>`;
 }
 
 function setStatus(msg, warn) { const s = $("status"); s.textContent = msg || ""; s.classList.toggle("warn", !!warn); }
@@ -248,12 +222,10 @@ function toast(msg, undo) {
 $("toastundo").addEventListener("click", () => { if (undoFn) undoFn(); $("toast").hidden = true; undoFn = null; });
 
 // ---------- Interactions ----------
-const armed = new Set();
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-act]");
-  if (!b || b.tagName === "SELECT") return;
+  if (!b) return;
   const { id, act } = b.dataset;
-  if (act === "starter") { addStarter(); return; }
   const p = id && state.items.get(id);
   if (!p) return;
   if (act === "cart") setFields(id, { inCart: true });
@@ -265,19 +237,7 @@ document.addEventListener("click", (e) => {
   } else if (act === "snooze") {
     const c = cadence(p, Date.now());
     setFields(id, { snoozeUntil: Date.now() + Math.max(2, (c ? c.median : 7) / 2) * DAY });
-  } else if (act === "del") {
-    if (!armed.has(id)) {
-      armed.add(id); b.textContent = "Confirmer ?"; b.classList.add("armed");
-      setTimeout(() => { armed.delete(id); if (b.isConnected) { b.textContent = "Supprimer"; b.classList.remove("armed"); } }, 3000);
-      return;
-    }
-    armed.delete(id); state.items.delete(id); render();
-    write(id, () => sb.from("items").delete().eq("id", id));
   }
-});
-document.addEventListener("change", (e) => {
-  const s = e.target.closest('select[data-act="rayon"]');
-  if (s) setFields(s.dataset.id, { rayon: s.value });
 });
 $("addform").addEventListener("submit", (e) => {
   e.preventDefault();

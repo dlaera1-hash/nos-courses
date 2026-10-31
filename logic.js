@@ -26,7 +26,44 @@ const KW_LIST = Object.entries(KEYWORDS)
   .flatMap(([rayon, words]) => words.map((w) => [w, rayon]))
   .sort((a, b) => b[0].length - a[0].length);
 
-export const STARTER = ["Lait","Œufs","Beurre","Yaourts","Pain","Pâtes","Riz","Café","Bananes","Pommes","Tomates","Oignons","Papier toilette","Liquide vaisselle","Lessive","Eau gazeuse"];
+// Emojis : d'abord celui du produit, sinon celui de son rayon.
+export const RAYON_EMOJI = {
+  "fruits-legumes": "🥕", "boulangerie": "🥖", "cremerie": "🧀", "boucherie": "🥩", "epicerie-salee": "🍝",
+  "epicerie-sucree": "🍫", "surgeles": "🧊", "boissons": "🥤", "hygiene": "🧴", "entretien": "🧽", "autre": "🛒",
+};
+
+const EMOJIS = {
+  "🍎": ["pomme","compote"], "🍐": ["poire"], "🍌": ["banane"], "🍊": ["orange","clementine","mandarine"], "🍋": ["citron"],
+  "🥝": ["kiwi"], "🍓": ["fraise","framboise"], "🍇": ["raisin"], "🥑": ["avocat"], "🍅": ["tomate","coulis"],
+  "🥬": ["salade","laitue","mache","roquette","chou","epinard","poireau"], "🥕": ["carotte"], "🥒": ["courgette","concombre","cornichon"],
+  "🍆": ["aubergine"], "🫑": ["poivron"], "🧅": ["oignon","echalote"], "🧄": ["ail"], "🥔": ["pomme de terre","pommes de terre","patate","chips"],
+  "🍄": ["champignon"], "🥦": ["brocoli"], "🫛": ["haricot vert","petits pois"], "🍈": ["melon"], "🍉": ["pasteque"],
+  "🥭": ["mangue"], "🍍": ["ananas"], "🍑": ["peche","abricot"], "🍒": ["cerise"], "🎃": ["courge","potiron"],
+  "🌿": ["persil","basilic","coriandre","menthe"], "🌽": ["mais"],
+  "🍞": ["pain","brioche","pain de mie"], "🥖": ["baguette"], "🥐": ["croissant","pain au chocolat","chocolatine","viennoiserie"],
+  "🥛": ["lait","creme"], "🥣": ["yaourt","yogourt","skyr","fromage blanc","cereale","muesli","flocon"], "🧈": ["beurre"],
+  "🧀": ["fromage","emmental","comte","mozzarella","parmesan","chevre","feta","ricotta"], "🥚": ["oeuf"],
+  "🍗": ["poulet","dinde","canard"], "🥩": ["boeuf","steak","viande","porc","veau","agneau"], "🍖": ["jambon","saucisson","charcuterie","chorizo"],
+  "🥓": ["lardon"], "🌭": ["saucisse","merguez"], "🐟": ["poisson","saumon","cabillaud","thon","sardine"], "🍤": ["crevette"],
+  "🍝": ["pate"], "🍚": ["riz"], "🫒": ["huile","olive"], "🧂": ["sel","poivre","epice"], "🌾": ["farine","semoule","quinoa"],
+  "🍲": ["soupe","bouillon"], "🥫": ["conserve","sauce","ketchup","moutarde","mayonnaise"], "🫘": ["lentille","pois chiche","haricot rouge"],
+  "☕": ["cafe"], "🍵": ["the","tisane"], "🍬": ["sucre"], "🍫": ["chocolat","pate a tartiner","nutella"], "🍯": ["confiture","miel"],
+  "🍪": ["biscuit","madeleine","crackers"], "🍰": ["gateau"], "🍦": ["glace"], "🍕": ["pizza"], "🍟": ["frites"],
+  "💧": ["eau"], "🧃": ["jus","sirop"], "🥤": ["soda","coca","limonade"], "🍺": ["biere","cidre"], "🍷": ["vin"], "🍾": ["champagne"],
+  "🧻": ["papier toilette","mouchoir","essuie-tout","sopalin"], "🪥": ["dentifrice","brosse a dent"], "🧼": ["savon"],
+  "🧴": ["shampoing","shampooing","gel douche","deodorant","creme hydratante","javel","vinaigre blanc"], "🪒": ["rasoir"],
+  "🧺": ["lessive","adoucissant"], "🍽️": ["liquide vaisselle","pastille","lave-vaisselle"], "🧽": ["eponge","nettoyant"],
+  "🗑️": ["sac poubelle"],
+};
+const EMOJI_LIST = Object.entries(EMOJIS)
+  .flatMap(([emoji, words]) => words.map((w) => [w, emoji]))
+  .sort((a, b) => b[0].length - a[0].length);
+
+export function emojiFor(name, rayon) {
+  const n = " " + norm(name).replace(/[^a-z0-9 -]/g, " ") + " ";
+  for (const [kw, emoji] of EMOJI_LIST) if (n.includes(" " + kw)) return emoji;
+  return RAYON_EMOJI[rayon] || RAYON_EMOJI.autre;
+}
 
 export function norm(s) {
   return s.toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae")
