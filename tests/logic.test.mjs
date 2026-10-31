@@ -32,6 +32,9 @@ t("saisie avec quantité", () => {
   assert.deepEqual(parseInput("lait x3"), { name: "Lait", qty: 3 });
   assert.deepEqual(parseInput("café"), { name: "Café", qty: null });
   assert.deepEqual(parseInput("1 melon"), { name: "Melon", qty: null });
+  assert.deepEqual(parseInput("noisettes ×2"), { name: "Noisettes", qty: 2 });
+  assert.deepEqual(parseInput("Noisettes X 4"), { name: "Noisettes", qty: 4 });
+  assert.deepEqual(parseInput("3x yaourts"), { name: "Yaourts", qty: 3 });
   assert.equal(parseInput("   "), null);
 });
 

@@ -81,11 +81,11 @@ export function slug(name) {
     || "p-" + Math.random().toString(36).slice(2, 8);
 }
 
-// "2 baguettes", "lait x3" ou "café" -> { name, qty }
+// "2 baguettes", "lait x3", "noisettes ×2" ou "café" -> { name, qty }
 export function parseInput(raw) {
   let t = raw.trim();
   let qty = null;
-  const m = t.match(/^(\d{1,3})\s*(x\s*)?(.+)$/i) || t.match(/^(.+?)\s*x\s*(\d{1,3})$/i);
+  const m = t.match(/^(\d{1,3})\s*([x×*]\s*)?(.+)$/i) || t.match(/^(.+?)\s*[x×*]\s*(\d{1,3})$/i);
   if (m) {
     if (/^\d/.test(m[1])) { qty = +m[1]; t = m[3]; } else { qty = +m[2]; t = m[1]; }
   }

@@ -7,6 +7,10 @@ const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-line
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const qtyTag = (p) => (p.qty ? `<span class="qty">×${p.qty}</span>` : "");
+const stepper = (p) => {
+  const q = p.qty || 1;
+  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" type="button" aria-label="Diminuer la quantité de ${esc(p.name)}"${q <= 1 ? " disabled" : ""}>−</button><b aria-label="Quantité">${q}</b><button data-act="inc" data-id="${esc(p.id)}" type="button" aria-label="Augmenter la quantité de ${esc(p.name)}">+</button></span>`;
+};
 const emo = (p) => `<span class="emo" aria-hidden="true">${emojiFor(p.name, p.rayon)}</span>`;
 const byName = (a, b) => a.name.localeCompare(b.name, "fr");
 
@@ -165,7 +169,6 @@ function render() {
   $("date").textContent = new Date(now).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   $("badge").hidden = !(state.loaded && onList.length);
   $("count").textContent = `${onList.length} à acheter`;
-  $("known").innerHTML = all.map((p) => `<option value="${esc(p.name)}">`).join("");
 
   const soon = off.map((p) => ({ p, c: cadence(p, now) })).filter((x) => x.c && x.c.due).sort((a, b) => a.c.next - b.c.next);
   $("soon").hidden = !soon.length;
@@ -180,7 +183,7 @@ function render() {
     $("list").innerHTML = RAYONS.map(([r, label]) => {
       const items = onList.filter((p) => (p.rayon || "autre") === r).sort(byName);
       if (!items.length) return "";
-      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}${qtyTag(p)}</span></button><button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
+      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}</span></button>${stepper(p)}<button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
     }).join("");
   }
 
@@ -210,6 +213,8 @@ document.addEventListener("click", (e) => {
   if (act === "cart") setFields(id, { inCart: true });
   else if (act === "uncart") setFields(id, { inCart: false });
   else if (act === "add") setFields(id, { onList: true, inCart: false, snoozeUntil: null });
+  else if (act === "inc") setFields(id, { qty: Math.min(99, (p.qty || 1) + 1) });
+  else if (act === "dec") { const q = (p.qty || 1) - 1; setFields(id, { qty: q > 1 ? q : null }); }
   else if (act === "remove") {
     setFields(id, { onList: false, inCart: false, qty: null });
     toast(`${p.name} retiré`, () => setFields(id, { onList: true, qty: p.qty || null }));

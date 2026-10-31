@@ -66,6 +66,10 @@ ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px
 .block h2 .emo{margin-right:10px}
 .chip .emo{margin-right:6px;font-size:1em}
 .qty{display:inline-block;margin-left:8px;background:#141414;color:#fff;border-radius:999px;padding:1px 8px;font-size:.78rem;font-variant-numeric:tabular-nums;vertical-align:2px}
+.step{flex:none;display:flex;align-items:center;background:#F0F0F3;border-radius:999px;padding:2px}
+.step button{width:34px;height:34px;border-radius:50%;font-size:1.2rem;font-weight:700;line-height:1;color:#141414}
+.step button:disabled{opacity:.3}
+.step b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums;font-size:1rem;color:#141414}
 .x{flex:none;width:40px;height:40px;border-radius:50%;color:var(--pill-muted);font-size:1.3rem;line-height:1}
 
 .r-fruits-legumes{background:var(--green);color:#fff}
