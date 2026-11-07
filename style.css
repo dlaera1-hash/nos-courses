@@ -57,20 +57,38 @@ h1{font-family:var(--display);font-weight:800;font-size:2.4rem;line-height:1;let
 .chip .skip{color:var(--pill-muted)}
 
 ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;position:relative}
-.row{display:flex;align-items:center;gap:6px;background:var(--pill);color:var(--pill-ink);border-radius:18px;padding:4px 4px 4px 14px}
+.row{display:flex;align-items:center;gap:4px;background:var(--pill);color:var(--pill-ink);border-radius:18px;padding:4px 4px 4px 14px}
 .tick{flex:1;min-width:0;display:flex;align-items:center;gap:12px;text-align:left;padding:10px 0;font-weight:600;font-size:1.02rem}
 .box{flex:none;width:26px;height:26px;border-radius:50%;border:2.5px solid #141414;display:grid;place-items:center}
 .box svg{width:14px;height:14px;opacity:0;stroke:#fff}
-.label{min-width:0;overflow-wrap:anywhere}
+.label{min-width:0;display:flex;align-items:baseline;overflow-wrap:anywhere}
+.label .txt{min-width:0}
+.label .emo{flex:none}
 .emo{display:inline-block;margin-right:8px;font-size:1.15em;line-height:1;vertical-align:-1px;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .block h2 .emo{margin-right:10px}
 .chip .emo{margin-right:6px;font-size:1em}
 .qty{display:inline-block;margin-left:8px;background:#141414;color:#fff;border-radius:999px;padding:1px 8px;font-size:.78rem;font-variant-numeric:tabular-nums;vertical-align:2px}
 .step{flex:none;display:flex;align-items:center;background:#F0F0F3;border-radius:999px;padding:2px}
-.step button{width:34px;height:34px;border-radius:50%;font-size:1.2rem;font-weight:700;line-height:1;color:#141414}
+.step button{width:32px;height:34px;border-radius:50%;font-size:1.2rem;font-weight:700;line-height:1;color:#141414}
 .step button:disabled{opacity:.3}
 .step b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums;font-size:1rem;color:#141414}
-.x{flex:none;width:40px;height:40px;border-radius:50%;color:var(--pill-muted);font-size:1.3rem;line-height:1}
+.x{flex:none;width:36px;height:36px;border-radius:50%;color:var(--pill-muted);font-size:1.3rem;line-height:1}
+.edit{flex:none;width:32px;height:36px;border-radius:50%;color:var(--pill-muted);display:grid;place-items:center}
+.edit svg{width:17px;height:17px}
+.note{display:block;margin-top:2px;font-size:.8rem;font-weight:500;color:var(--pill-muted);line-height:1.3}
+.cart .note{text-decoration:none}
+/* Petits écrans : on rend de la place au nom du produit. */
+@media (max-width:420px){
+  .list .block{padding:18px 12px}
+  .list .block-head{padding:0 6px}
+  .row{padding-left:10px;gap:2px}
+  .tick{gap:10px}
+  .label .emo{margin-right:6px}
+  .step button{width:30px}
+  .step b{min-width:18px}
+  .x{width:32px}
+  .edit{width:30px}
+}
 
 .r-fruits-legumes{background:var(--green);color:#fff}
 .r-boulangerie{background:var(--yellow);color:#141414}
@@ -107,6 +125,30 @@ ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px
 .login form{display:flex;flex-direction:column;gap:10px}
 .login .hint{color:var(--muted);font-size:.9rem;margin:0}
 .login .code{letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums;font-size:1.4rem}
+
+/* Fiche produit */
+.sheet{margin:auto auto 0;width:100%;max-width:540px;max-height:92vh;overflow:auto;border:0;border-radius:28px 28px 0 0;background:var(--surface);color:var(--ink);padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet::backdrop{background:rgba(0,0,0,.4)}
+.sheet form{display:flex;flex-direction:column;gap:10px}
+.sheet h2{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet .hint{color:var(--muted);font-size:.9rem;font-weight:600;margin:6px 0 0}
+.sheet .field{background:var(--bg)}
+.sheet .status{margin:0}
+.area{border-radius:20px;resize:none;font-size:1rem;line-height:1.35}
+.emogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:156px;overflow-y:auto;padding:2px}
+.emochoice{position:relative;display:grid;place-items:center;height:44px;border-radius:14px;font-size:1.45rem;cursor:pointer;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.emochoice:first-child{grid-column:span 2;gap:0;font-size:1.2rem}
+.emochoice:first-child span{display:flex;align-items:center;gap:6px}
+.emochoice i{font-style:normal}
+.emochoice b{font-family:var(--body);font-size:.8rem;color:var(--muted)}
+.emochoice input,.pill input{position:absolute;opacity:0;pointer-events:none}
+.emochoice:has(input:checked){background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{position:relative;display:inline-flex;align-items:center;padding:9px 14px;border-radius:999px;font-weight:600;font-size:.92rem;cursor:pointer}
+.pill .emo{margin-right:6px;font-size:1em}
+.pill:has(input:checked){box-shadow:0 0 0 3px var(--surface),0 0 0 5.5px var(--ink)}
+.emochoice:has(input:focus-visible),.pill:has(input:focus-visible){outline:3px solid var(--blue);outline-offset:2px}
 
 /* Barre du bas */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));pointer-events:none}

@@ -1,6 +1,6 @@
 // Tests de la logique pure : node tests/logic.test.mjs
 import assert from "node:assert/strict";
-import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every } from "../logic.js";
+import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every, pickEmoji, cleanName, EMOJI_CHOICES } from "../logic.js";
 
 const now = Date.UTC(2026, 9, 31);
 let n = 0;
@@ -38,6 +38,19 @@ t("saisie avec quantité", () => {
   assert.equal(parseInput("   "), null);
 });
 
+t("fiche produit", () => {
+  assert.equal(pickEmoji("🥜"), "🥜");
+  assert.equal(pickEmoji("  🍽️ "), "🍽️");
+  assert.equal(pickEmoji("👨‍👩‍👧 et plus"), "👨‍👩‍👧");
+  assert.equal(pickEmoji("🇫🇷"), "🇫🇷");
+  assert.equal(pickEmoji("A"), null);
+  assert.equal(pickEmoji(""), null);
+  assert.equal(cleanName("  noisettes   grillées "), "Noisettes grillées");
+  assert.equal(cleanName("   "), "");
+  assert.ok(EMOJI_CHOICES.includes("🧺") && EMOJI_CHOICES.includes("🛒"));
+  assert.equal(new Set(EMOJI_CHOICES).size, EMOJI_CHOICES.length);
+});
+
 t("identifiants stables", () => {
   assert.equal(slug("Œufs bio"), "oeufs-bio");
   assert.equal(slug("Pâte à tartiner"), "pate-a-tartiner");
@@ -62,6 +75,12 @@ t("aller-retour base de données", () => {
   assert.deepEqual(p.purchases, [1793404800000]);
   assert.equal(p.onList, true);
   assert.deepEqual(toRow({ onList: false, snoozeUntil: null, id: "ignoré" }), { on_list: false, snooze_until: null });
+  assert.equal(p.emoji, null);
+  assert.equal(p.note, null);
+  const q = fromRow({ ...row, emoji: "🥜", note: "Grillées, sans sel" });
+  assert.equal(q.emoji, "🥜");
+  assert.equal(q.note, "Grillées, sans sel");
+  assert.deepEqual(toRow({ name: "Noisettes", emoji: null, note: "x", rayon: "epicerie-sucree" }), { name: "Noisettes", emoji: null, note: "x", rayon: "epicerie-sucree" });
 });
 
 console.log(`${n} groupes de tests réussis`);

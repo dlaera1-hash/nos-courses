@@ -1,6 +1,6 @@
 // Écran et synchronisation avec Supabase.
-import { DAY, RAYONS, RAYON_EMOJI, guessRayon, emojiFor, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261031180922";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261031180922";
+import { DAY, RAYONS, RAYON_EMOJI, EMOJI_CHOICES, guessRayon, emojiFor, pickEmoji, cleanName, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261107185134";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261107185134";
 
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
 
@@ -11,7 +11,11 @@ const stepper = (p) => {
   const q = p.qty || 1;
   return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" type="button" aria-label="Diminuer la quantité de ${esc(p.name)}"${q <= 1 ? " disabled" : ""}>−</button><b aria-label="Quantité">${q}</b><button data-act="inc" data-id="${esc(p.id)}" type="button" aria-label="Augmenter la quantité de ${esc(p.name)}">+</button></span>`;
 };
-const emo = (p) => `<span class="emo" aria-hidden="true">${emojiFor(p.name, p.rayon)}</span>`;
+const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+const emojiOf = (p) => p.emoji || emojiFor(p.name, p.rayon);
+const emo = (p) => `<span class="emo" aria-hidden="true">${emojiOf(p)}</span>`;
+const note = (p) => (p.note ? `<small class="note">${esc(p.note)}</small>` : "");
+const byKey = (name) => { const k = slug(name); return [...state.items.values()].find((p) => slug(p.name) === k); };
 const byName = (a, b) => a.name.localeCompare(b.name, "fr");
 
 const state = { items: new Map(), loaded: false, channel: null, started: false };
@@ -130,9 +134,13 @@ function setFields(id, fields) {
 
 function addByName(raw) {
   const parsed = parseInput(raw); if (!parsed) return;
-  const id = slug(parsed.name);
   const fields = { onList: true, inCart: false, qty: parsed.qty, snoozeUntil: null };
-  if (state.items.has(id)) { setFields(id, fields); return; }
+  // On cherche par nom : un produit renommé garde son ancien identifiant.
+  const known = byKey(parsed.name);
+  if (known) { setFields(known.id, fields); return; }
+  const key = slug(parsed.name);
+  let id = key;
+  while (state.items.has(id)) id = `${key}-${Math.random().toString(36).slice(2, 6)}`;
   const now = Date.now();
   const doc = { name: parsed.name, rayon: guessRayon(parsed.name), ...fields, purchases: [], addedAt: now, updatedAt: now };
   state.items.set(id, { id, ...doc }); render();
@@ -178,18 +186,18 @@ function render() {
   else if (!all.length) {
     $("list").innerHTML = `<section class="block empty"><h2>La liste est vide</h2><p>Tape un produit en haut : il se range tout seul dans son rayon. Au fil des courses, l'appli retient votre rythme et vous rappelle quoi racheter.</p></section>`;
   } else if (!onList.length) {
-    $("list").innerHTML = `<section class="block empty calm"><h2>Rien à acheter</h2><p>Ajoute un produit en haut. Tes anciens produits s'affichent dans la saisie quand tu commences à taper.</p></section>`;
+    $("list").innerHTML = `<section class="block empty calm"><h2>Rien à acheter</h2><p>Ajoute un produit en haut. Tes anciens produits gardent leur rayon, leur emoji et leurs détails.</p></section>`;
   } else {
     $("list").innerHTML = RAYONS.map(([r, label]) => {
       const items = onList.filter((p) => (p.rayon || "autre") === r).sort(byName);
       if (!items.length) return "";
-      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}</span></button>${stepper(p)}<button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
+      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}<span class="txt">${esc(p.name)}${note(p)}</span></span></button><button class="edit" data-act="edit" data-id="${esc(p.id)}" type="button" aria-label="Modifier ${esc(p.name)}">${PEN}</button>${stepper(p)}<button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
     }).join("");
   }
 
   $("cartsec").hidden = !inCart.length;
   $("cartcount").textContent = inCart.length;
-  $("cart").innerHTML = inCart.sort(byName).map((p) => `<li class="row"><button class="tick" data-act="uncart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}${esc(p.name)}${qtyTag(p)}</span></button></li>`).join("");
+  $("cart").innerHTML = inCart.sort(byName).map((p) => `<li class="row"><button class="tick" data-act="uncart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}<span class="txt">${esc(p.name)}${qtyTag(p)}${note(p)}</span></span></button></li>`).join("");
   $("dock").hidden = !inCart.length;
   $("docknum").textContent = inCart.length;
 }
@@ -213,6 +221,7 @@ document.addEventListener("click", (e) => {
   if (act === "cart") setFields(id, { inCart: true });
   else if (act === "uncart") setFields(id, { inCart: false });
   else if (act === "add") setFields(id, { onList: true, inCart: false, snoozeUntil: null });
+  else if (act === "edit") openEditor(p);
   else if (act === "inc") setFields(id, { qty: Math.min(99, (p.qty || 1) + 1) });
   else if (act === "dec") { const q = (p.qty || 1) - 1; setFields(id, { qty: q > 1 ? q : null }); }
   else if (act === "remove") {
@@ -230,6 +239,61 @@ $("addform").addEventListener("submit", (e) => {
   addByName(v); $("addinput").value = ""; $("addinput").focus();
 });
 $("finish").addEventListener("click", finishShopping);
+
+// ---------- Fiche produit : nom, emoji, rayon, détails ----------
+let editingId = null;
+const edform = $("editform");
+
+function openEditor(p) {
+  editingId = p.id;
+  $("edname").value = p.name;
+  $("ednote").value = p.note || "";
+  const custom = p.emoji && !EMOJI_CHOICES.includes(p.emoji) ? p.emoji : "";
+  $("edemoji").value = custom;
+  $("edrayons").innerHTML = RAYONS.map(([r, label]) => `<label class="pill r-${r}"><input type="radio" name="rayon" value="${r}"${(p.rayon || "autre") === r ? " checked" : ""}><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</label>`).join("");
+  const choice = (e, v, label) => `<label class="emochoice"><input type="radio" name="emoji" value="${v}"${(p.emoji || "") === v && !custom ? " checked" : ""}><span aria-label="${label}">${e}</span></label>`;
+  $("edemojis").innerHTML = choice(`<i id="edauto">${emojiFor(p.name, p.rayon)}</i><b>auto</b>`, "", "Emoji automatique")
+    + EMOJI_CHOICES.map((e) => choice(e, e, e)).join("");
+  edStatus("");
+  $("editor").showModal();
+}
+function closeEditor() { editingId = null; $("editor").close(); }
+function edStatus(msg) { const s = $("edstatus"); s.textContent = msg; s.classList.toggle("warn", !!msg); }
+function refreshAuto() {
+  const r = edform.elements.namedItem("rayon").value || "autre";
+  const a = $("edauto"); if (a) a.textContent = emojiFor($("edname").value, r);
+}
+
+$("edclose").addEventListener("click", closeEditor);
+// Fermer seulement sur le fond grisé, pas dans les marges de la fiche.
+$("editor").addEventListener("click", (e) => {
+  if (e.target !== $("editor")) return;
+  const r = $("editor").getBoundingClientRect();
+  if (e.clientY < r.top || e.clientY > r.bottom || e.clientX < r.left || e.clientX > r.right) closeEditor();
+});
+$("editor").addEventListener("close", () => { editingId = null; });
+edform.addEventListener("input", (e) => {
+  if (e.target.id === "edemoji" && e.target.value) for (const r of edform.querySelectorAll('input[name="emoji"]')) r.checked = false;
+  if (e.target.name === "emoji") $("edemoji").value = "";
+  if (e.target.id === "edname" || e.target.name === "rayon") refreshAuto();
+});
+edform.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const p = editingId && state.items.get(editingId);
+  if (!p) { closeEditor(); return; }
+  const name = cleanName($("edname").value);
+  if (!name) { edStatus("Donne un nom au produit."); return; }
+  const twin = byKey(name);
+  if (twin && twin.id !== p.id) { edStatus(`« ${twin.name} » existe déjà.`); return; }
+  const typed = $("edemoji").value.trim();
+  const custom = pickEmoji(typed);
+  if (typed && !custom) { edStatus("Tape un emoji, pas une lettre."); return; }
+  const emoji = custom || edform.elements.namedItem("emoji").value || null;
+  const rayon = edform.elements.namedItem("rayon").value || p.rayon || "autre";
+  const detail = $("ednote").value.replace(/\s+/g, " ").trim().slice(0, 200) || null;
+  setFields(p.id, { name, emoji, rayon, note: detail });
+  closeEditor();
+});
 
 // ---------- Démarrage ----------
 function startApp() {

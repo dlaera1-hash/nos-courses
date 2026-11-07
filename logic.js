@@ -59,6 +59,25 @@ const EMOJI_LIST = Object.entries(EMOJIS)
   .flatMap(([emoji, words]) => words.map((w) => [w, emoji]))
   .sort((a, b) => b[0].length - a[0].length);
 
+// Tous les emojis connus, pour le choix manuel dans la fiche produit.
+export const EMOJI_CHOICES = [...new Set([...Object.keys(EMOJIS), ...Object.values(RAYON_EMOJI)])];
+
+// Emoji tapé à la main : on garde le premier, et seulement si c'est bien un emoji.
+export function pickEmoji(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const first = typeof Intl !== "undefined" && Intl.Segmenter
+    ? [...new Intl.Segmenter("fr", { granularity: "grapheme" }).segment(s)][0].segment
+    : Array.from(s)[0];
+  return /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(first) ? first : null;
+}
+
+// Nom propre : espaces resserrés, majuscule au début, 60 caractères au plus.
+export function cleanName(raw) {
+  const t = String(raw || "").replace(/\s+/g, " ").trim().slice(0, 60);
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+}
+
 export function emojiFor(name, rayon) {
   const n = " " + norm(name).replace(/[^a-z0-9 -]/g, " ") + " ";
   for (const [kw, emoji] of EMOJI_LIST) if (n.includes(" " + kw)) return emoji;
@@ -89,9 +108,9 @@ export function parseInput(raw) {
   if (m) {
     if (/^\d/.test(m[1])) { qty = +m[1]; t = m[3]; } else { qty = +m[2]; t = m[1]; }
   }
-  t = t.trim();
-  if (!t) return null;
-  return { name: t.charAt(0).toUpperCase() + t.slice(1), qty: qty && qty > 1 ? qty : null };
+  const name = cleanName(t);
+  if (!name) return null;
+  return { name, qty: qty && qty > 1 ? qty : null };
 }
 
 // Rythme d'achat : intervalle médian entre les 7 derniers achats.
@@ -126,13 +145,13 @@ export function every(m) {
 // Conversion entre la base (snake_case) et l'appli (camelCase)
 export function fromRow(r) {
   return {
-    id: r.id, name: r.name, rayon: r.rayon, onList: r.on_list, inCart: r.in_cart, qty: r.qty,
+    id: r.id, name: r.name, rayon: r.rayon, emoji: r.emoji || null, note: r.note || null, onList: r.on_list, inCart: r.in_cart, qty: r.qty,
     purchases: (r.purchases || []).map(Number), snoozeUntil: r.snooze_until == null ? null : Number(r.snooze_until),
     addedAt: r.added_at == null ? null : Number(r.added_at), updatedAt: r.updated_at == null ? null : Number(r.updated_at),
   };
 }
 
-const COLS = { name: "name", rayon: "rayon", onList: "on_list", inCart: "in_cart", qty: "qty", purchases: "purchases", snoozeUntil: "snooze_until", addedAt: "added_at", updatedAt: "updated_at" };
+const COLS = { name: "name", rayon: "rayon", emoji: "emoji", note: "note", onList: "on_list", inCart: "in_cart", qty: "qty", purchases: "purchases", snoozeUntil: "snooze_until", addedAt: "added_at", updatedAt: "updated_at" };
 
 export function toRow(fields) {
   const row = {};

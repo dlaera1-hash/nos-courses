@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261031180922">
+  <link rel="stylesheet" href="style.css?v=20261107185134">
 </head>
 <body>
 
@@ -69,9 +69,25 @@
 </div>
 
 <div class="dock" id="dock" hidden><button id="finish" type="button">Terminer les courses <span class="n" id="docknum"></span></button></div>
+<dialog class="sheet" id="editor" aria-labelledby="edtitle">
+  <form id="editform" autocomplete="off">
+    <div class="sheet-head"><h2 id="edtitle">Modifier le produit</h2><button class="x" type="button" id="edclose" aria-label="Fermer" autofocus>×</button></div>
+    <label class="hint" for="edname">Nom</label>
+    <input class="field" id="edname" type="text" maxlength="60" required enterkeyhint="done">
+    <div class="hint" id="edemojilabel">Emoji</div>
+    <div class="emogrid" role="radiogroup" aria-labelledby="edemojilabel" id="edemojis"></div>
+    <input class="field" id="edemoji" type="text" maxlength="16" placeholder="Ou tape un emoji" aria-label="Emoji personnalisé">
+    <div class="hint" id="edrayonlabel">Rayon</div>
+    <div class="pills" role="radiogroup" aria-labelledby="edrayonlabel" id="edrayons"></div>
+    <label class="hint" for="ednote">Détails</label>
+    <textarea class="field area" id="ednote" rows="2" maxlength="200" placeholder="Marque, taille, bio, pour quelle recette…"></textarea>
+    <p class="status" id="edstatus"></p>
+    <button class="btn dark" type="submit">Enregistrer</button>
+  </form>
+</dialog>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo" type="button">Annuler</button></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
-<script type="module" src="app.js?v=20261031180922"></script>
+<script type="module" src="app.js?v=20261107185134"></script>
 </body>
 </html>

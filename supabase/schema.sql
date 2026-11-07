@@ -17,6 +17,8 @@ create table if not exists public.items (
   id           text primary key,            -- identifiant lisible, ex. "pate-a-tartiner"
   name         text not null,
   rayon        text not null default 'autre',
+  emoji        text,                         -- emoji choisi à la main (vide = automatique)
+  note         text,                         -- détails : marque, taille, bio…
   on_list      boolean not null default false,
   in_cart      boolean not null default false,
   qty          integer,
@@ -25,6 +27,10 @@ create table if not exists public.items (
   added_at     bigint,
   updated_at   bigint
 );
+
+-- Mise à jour d'une base créée avant la fiche produit (sans effet si les colonnes existent)
+alter table public.items add column if not exists emoji text;
+alter table public.items add column if not exists note  text;
 
 -- 3. Règles d'accès : seuls les membres lisent et écrivent
 alter table public.members enable row level security;
