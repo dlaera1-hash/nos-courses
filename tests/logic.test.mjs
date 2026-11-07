@@ -1,6 +1,6 @@
 // Tests de la logique pure : node tests/logic.test.mjs
 import assert from "node:assert/strict";
-import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every, pickEmoji, cleanName, EMOJI_CHOICES, allRayons, rayonFromRow, cleanLabel, keywordEmoji, COLORS } from "../logic.js";
+import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every, pickEmoji, cleanName, EMOJI_CHOICES, allRayons, defaultOrder, orderRows, isBaseRayon, rayonFromRow, cleanLabel, keywordEmoji, COLORS } from "../logic.js";
 
 const now = Date.UTC(2026, 9, 31);
 let n = 0;
@@ -53,8 +53,8 @@ t("fiche produit", () => {
 
 t("rayons créés", () => {
   const ids = allRayons([
-    { id: "c-apero", label: "Apéro", emoji: "🥂", color: "pink", position: 2 },
-    { id: "c-bebe", label: "Bébé", emoji: "🍼", color: "sky", position: 1 },
+    { id: "c-apero", label: "Apéro", emoji: "🥂", color: "pink", position: 1794000000002 },
+    { id: "c-bebe", label: "Bébé", emoji: "🍼", color: "sky", position: 1794000000001 },
   ]).map((r) => r.id);
   assert.equal(ids.length, 13);
   assert.deepEqual(ids.slice(-3), ["c-bebe", "c-apero", "autre"]);
@@ -64,6 +64,20 @@ t("rayons créés", () => {
   assert.equal(r.emoji, "🛒");
   assert.equal(r.color, "grey");
   assert.equal(r.position, 5);
+  // Classement enregistré puis relu : l'ordre choisi revient tel quel.
+  const start = allRayons([{ id: "c-bebe", label: "Bébé", emoji: "🍼", color: "sky", position: 1794000000001 }]);
+  const wanted = [start.at(-1), start.at(-2), ...start.slice(0, -2).reverse()];
+  const ordered = allRayons(orderRows(wanted).map(rayonFromRow)).map((x) => x.id);
+  assert.deepEqual(ordered, wanted.map((x) => x.id));
+  assert.deepEqual(ordered.slice(0, 3), ["autre", "c-bebe", "entretien"]);
+  const back = defaultOrder(allRayons([{ id: "autre", position: 1 }, { id: "c-bebe", label: "Bébé", emoji: "🍼", color: "sky", position: 2 }])).map((x) => x.id);
+  assert.deepEqual(back.slice(0, 2), ["fruits-legumes", "boulangerie"]);
+  assert.deepEqual(back.slice(-2), ["c-bebe", "autre"]);
+  const rows = orderRows(allRayons());
+  assert.deepEqual(rows[0], { id: "fruits-legumes", label: "Fruits et légumes", emoji: "🥕", color: "green", position: 1 });
+  assert.equal(rows.at(-1).id, "autre");
+  assert.ok(isBaseRayon("autre") && !isBaseRayon("c-bebe"));
+  assert.equal(rayonFromRow({ id: "c-y", label: "Y" }).position < Number.MAX_SAFE_INTEGER, true);
   assert.equal(cleanLabel("  produits   pour le chat et le chien, en vrac "), "Produits pour le chat et le ch");
   assert.equal(keywordEmoji("Couches taille 3"), null);
   assert.equal(keywordEmoji("Lait"), "🥛");

@@ -1,6 +1,6 @@
 // Écran et synchronisation avec Supabase.
-import { DAY, COLORS, EMOJI_CHOICES, allRayons, rayonFromRow, cleanLabel, guessRayon, keywordEmoji, pickEmoji, cleanName, norm, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261107202825";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261107202825";
+import { DAY, COLORS, EMOJI_CHOICES, allRayons, defaultOrder, orderRows, isBaseRayon, rayonFromRow, cleanLabel, guessRayon, keywordEmoji, pickEmoji, cleanName, norm, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261107204326";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261107204326";
 
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
 
@@ -17,6 +17,8 @@ const stepper = (p) => {
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // Rayons de base et rayons créés, dans l'ordre de la liste. Un rayon inconnu (supprimé ailleurs) devient "Autre".
 const rayons = () => allRayons(state.rayons.values());
+// Rayon créé à la main (les rayons de base peuvent aussi avoir une ligne en base, pour leur place).
+const customRayon = (id) => (id && !isBaseRayon(id) ? state.rayons.get(id) : null);
 const rayonOf = (id) => rayons().find((r) => r.id === id) || rayons().find((r) => r.id === "autre");
 const autoEmoji = (name, rayonId) => keywordEmoji(name) || rayonOf(rayonId).emoji;
 const emojiOf = (p) => p.emoji || autoEmoji(p.name, p.rayon);
@@ -234,7 +236,7 @@ $("toastundo").addEventListener("click", () => { if (undoFn) undoFn(); $("toast"
 // ---------- Interactions ----------
 document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-rid]");
-  if (rb) { const r = state.rayons.get(rb.dataset.rid); if (r) openRayon(r); return; }
+  if (rb) { const r = customRayon(rb.dataset.rid); if (r) openRayon(r); return; }
   const b = e.target.closest("[data-act]");
   if (!b) return;
   const { id, act } = b.dataset;
@@ -329,7 +331,7 @@ function renderPills(selected) {
   syncRayonTools();
 }
 function syncRayonTools() {
-  const r = state.rayons.get(checkedRayon());
+  const r = customRayon(checkedRayon());
   $("editrayon").hidden = !r;
   if (r) $("editrayon").textContent = `Modifier « ${r.label} »`;
 }
@@ -367,7 +369,7 @@ $("edremove").addEventListener("click", () => {
   if (p) removeFromList(p);
 });
 $("newrayon").addEventListener("click", () => openRayon(null));
-$("editrayon").addEventListener("click", () => { const r = state.rayons.get(checkedRayon()); if (r) openRayon(r); });
+$("editrayon").addEventListener("click", () => { const r = customRayon(checkedRayon()); if (r) openRayon(r); });
 edform.addEventListener("submit", (e) => {
   e.preventDefault();
   const p = editingId && state.items.get(editingId);
@@ -403,8 +405,9 @@ function openRayon(r) {
   $("ryemoji").value = r ? r.emoji : "";
   $("ryquick").innerHTML = QUICK.map((e) => `<button type="button" data-emoji="${e}" aria-label="Choisir ${e}">${e}</button>`).join("");
   // Couleur proposée : une que les autres rayons créés n'ont pas encore.
-  const used = new Set([...state.rayons.values()].map((x) => x.color));
-  const color = r ? r.color : COLORS.find((c) => !used.has(c)) || COLORS[state.rayons.size % COLORS.length];
+  const mine = rayons().filter((x) => x.custom);
+  const used = new Set(mine.map((x) => x.color));
+  const color = r ? r.color : COLORS.find((c) => !used.has(c)) || COLORS[mine.length % COLORS.length];
   $("rycolors").innerHTML = COLORS.map((c) => `<label class="swatch col-${c}"><input type="radio" name="color" value="${c}"${c === color ? " checked" : ""} aria-label="Couleur ${c}"></label>`).join("");
   ryStatus("");
   openSheet($("rayoned"));
@@ -436,8 +439,15 @@ ryform.addEventListener("submit", (e) => {
     id = key;
     while (rayons().some((x) => x.id === id)) id = `${key}-${Math.random().toString(36).slice(2, 6)}`;
     const row = { id, label, emoji: emoji || "🛒", color, position: Date.now() };
-    state.rayons.set(id, rayonFromRow(row));
-    write(`rayon:${id}`, () => sb.from("rayons").insert(row));
+    if ([...state.rayons.keys()].some(isBaseRayon)) {
+      // Rayons déjà classés : le nouveau se range à la fin, juste avant "Autre" si "Autre" est dernier.
+      const list = rayons();
+      list.splice(list.at(-1).id === "autre" ? list.length - 1 : list.length, 0, { ...rayonFromRow(row), custom: true });
+      saveOrder(list);
+    } else {
+      state.rayons.set(id, rayonFromRow(row));
+      write(`rayon:${id}`, () => sb.from("rayons").insert(row));
+    }
   }
   closeRayon();
   render();
@@ -466,6 +476,80 @@ $("rydelete").addEventListener("click", () => {
   render();
   if ($("editor").open) { renderPills(checkedRayon()); refreshAuto(); }
 });
+
+// ---------- Classer les rayons dans l'ordre du magasin ----------
+function saveOrder(list) {
+  const rows = orderRows(list);
+  for (const r of rows) state.rayons.set(r.id, rayonFromRow(r));
+  write("rayons:ordre", () => sb.from("rayons").upsert(rows));
+  render();
+}
+
+const GRIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>';
+const orlist = $("orlist");
+function fillOrder(list) {
+  orlist.innerHTML = list.map((r) => `<li class="orow col-${r.color}" data-id="${esc(r.id)}"><span class="emo" aria-hidden="true">${esc(r.emoji)}</span><span class="ortxt">${esc(r.label)}</span><button class="grip" type="button" aria-label="Déplacer ${esc(r.label)} (flèches haut et bas)">${GRIP}</button></li>`).join("");
+}
+function openOrder() { fillOrder(rayons()); openSheet($("orderer")); }
+function closeOrder() { odrag = null; $("orderer").close(); }
+
+let odrag = null;
+orlist.addEventListener("pointerdown", (e) => {
+  const g = e.target.closest(".grip");
+  if (!g || (e.pointerType === "mouse" && e.button !== 0)) return;
+  e.preventDefault();
+  const li = g.closest("li");
+  try { g.setPointerCapture(e.pointerId); } catch {}
+  odrag = { li, pid: e.pointerId, grab: e.clientY - li.getBoundingClientRect().top };
+  li.classList.add("lifted");
+});
+orlist.addEventListener("pointermove", (e) => {
+  if (!odrag || e.pointerId !== odrag.pid) return;
+  const { li } = odrag;
+  // Près du bord de la fiche, la liste défile toute seule.
+  const body = li.closest(".sheet-body"), br = body.getBoundingClientRect();
+  if (e.clientY < br.top + 44) body.scrollTop -= 10; else if (e.clientY > br.bottom - 44) body.scrollTop += 10;
+  // Le rayon prend la place du premier voisin dont il dépasse le milieu.
+  let before = null;
+  for (const o of orlist.children) {
+    if (o === li) continue;
+    const r = o.getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) { before = o; break; }
+  }
+  if (before ? li.nextElementSibling !== before : orlist.lastElementChild !== li) orlist.insertBefore(li, before);
+  // Et il suit le doigt.
+  const slot = orlist.getBoundingClientRect().top + li.offsetTop;
+  li.style.transform = `translateY(${e.clientY - odrag.grab - slot}px)`;
+});
+function dropOrder() { if (!odrag) return; odrag.li.style.transform = ""; odrag.li.classList.remove("lifted"); odrag = null; }
+orlist.addEventListener("pointerup", dropOrder);
+orlist.addEventListener("pointercancel", dropOrder);
+// Au clavier : flèches haut et bas sur la poignée.
+orlist.addEventListener("keydown", (e) => {
+  const g = e.target.closest(".grip");
+  if (!g || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+  e.preventDefault();
+  const li = g.closest("li");
+  if (e.key === "ArrowUp" && li.previousElementSibling) orlist.insertBefore(li, li.previousElementSibling);
+  if (e.key === "ArrowDown" && li.nextElementSibling) orlist.insertBefore(li.nextElementSibling, li);
+  g.focus();
+});
+
+$("orclose").addEventListener("click", closeOrder);
+closeOnBackdrop($("orderer"), closeOrder);
+$("orreset").addEventListener("click", () => fillOrder(defaultOrder(rayons())));
+$("orderform").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const all = rayons();
+  const list = [...orlist.children].map((li) => all.find((r) => r.id === li.dataset.id)).filter(Boolean);
+  // Un rayon créé entre-temps sur l'autre téléphone garde sa place avant "Autre".
+  for (const r of all) if (!list.includes(r)) list.splice(Math.max(0, list.length - 1), 0, r);
+  saveOrder(list);
+  closeOrder();
+  if ($("editor").open) renderPills(checkedRayon());
+});
+$("sortrayons").addEventListener("click", openOrder);
+$("ordermini").addEventListener("click", openOrder);
 
 // ---------- Démarrage ----------
 function startApp() {

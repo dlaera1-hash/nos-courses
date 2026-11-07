@@ -97,19 +97,37 @@ const BASE_COLOR = {
   "epicerie-sucree": "sky", "surgeles": "blue", "boissons": "teal", "hygiene": "lime", "entretien": "lilac", "autre": "grey",
 };
 
-// Ordre d'affichage : rayons de base, puis rayons créés (du plus ancien au plus récent), puis "Autre".
-export function allRayons(custom = []) {
-  const base = RAYONS.map(([id, label]) => ({ id, label, emoji: RAYON_EMOJI[id], color: BASE_COLOR[id], custom: false }));
-  const extra = [...custom]
-    .sort((a, b) => (a.position || 0) - (b.position || 0) || a.label.localeCompare(b.label, "fr"))
-    .map((r) => ({ ...r, custom: true }));
-  return [...base.slice(0, -1), ...extra, base[base.length - 1]];
+export const isBaseRayon = (id) => id in BASE_COLOR;
+const LAST = Number.MAX_SAFE_INTEGER;
+
+// Ordre d'affichage. Chaque rayon peut avoir une position enregistrée, rayons de base compris
+// une fois qu'on les a classés. Sans position : rayons de base dans l'ordre d'origine,
+// rayons créés du plus ancien au plus récent, et "Autre" en dernier.
+export function allRayons(rows = []) {
+  const saved = new Map([...rows].map((r) => [r.id, r]));
+  const base = RAYONS.map(([id, label], i) => ({
+    id, label, emoji: RAYON_EMOJI[id], color: BASE_COLOR[id], custom: false,
+    position: saved.has(id) ? saved.get(id).position : id === "autre" ? LAST : i,
+  }));
+  const extra = [...saved.values()].filter((r) => !isBaseRayon(r.id)).map((r) => ({ ...r, custom: true }));
+  return [...base, ...extra].sort((a, b) => a.position - b.position || a.label.localeCompare(b.label, "fr"));
+}
+
+// Ordre de départ : rayons de base d'origine, rayons créés dans leur ordre actuel, "Autre" à la fin.
+export function defaultOrder(list) {
+  const base = RAYONS.map(([id]) => list.find((r) => r.id === id)).filter(Boolean);
+  return [...base.slice(0, -1), ...list.filter((r) => r.custom), base[base.length - 1]];
+}
+
+// Lignes à enregistrer pour un ordre donné : positions 1, 2, 3…
+export function orderRows(list) {
+  return list.map((r, i) => ({ id: r.id, label: r.label, emoji: r.emoji, color: r.color, position: i + 1 }));
 }
 
 export function rayonFromRow(r) {
   return {
     id: r.id, label: r.label, emoji: r.emoji || RAYON_EMOJI.autre,
-    color: COLORS.includes(r.color) ? r.color : "grey", position: r.position == null ? 0 : Number(r.position),
+    color: COLORS.includes(r.color) ? r.color : "grey", position: r.position == null ? LAST - 1 : Number(r.position),
   };
 }
 

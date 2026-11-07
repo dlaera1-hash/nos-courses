@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261107202825">
+  <link rel="stylesheet" href="style.css?v=20261107204326">
 </head>
 <body>
 
@@ -65,7 +65,7 @@
     <ul id="cart"></ul>
   </section>
 
-  <div class="foot"><button type="button" id="logout">Se déconnecter</button></div>
+  <div class="foot"><button class="mini" type="button" id="sortrayons">Classer les rayons</button><button type="button" id="logout">Se déconnecter</button></div>
 </div>
 
 <div class="dock" id="dock" hidden><button id="finish" type="button">Terminer les courses <span class="n" id="docknum"></span></button></div>
@@ -80,7 +80,7 @@
       <input class="field" id="edemoji" type="text" maxlength="16" placeholder="Ou tape un emoji" aria-label="Emoji personnalisé">
       <div class="hint" id="edrayonlabel">Rayon</div>
       <div class="pills" role="radiogroup" aria-labelledby="edrayonlabel" id="edrayons"></div>
-      <div class="minis"><button class="mini" type="button" id="newrayon">+ Nouveau rayon</button><button class="mini" type="button" id="editrayon" hidden>Modifier ce rayon</button></div>
+      <div class="minis"><button class="mini" type="button" id="newrayon">+ Nouveau rayon</button><button class="mini" type="button" id="editrayon" hidden>Modifier ce rayon</button><button class="mini" type="button" id="ordermini">Classer les rayons</button></div>
       <label class="hint" for="ednote">Détails</label>
       <textarea class="field area" id="ednote" rows="2" maxlength="200" placeholder="Marque, taille, bio, pour quelle recette…"></textarea>
       <p class="status" id="edstatus"></p>
@@ -110,9 +110,22 @@
     </div>
   </form>
 </dialog>
+<dialog class="sheet" id="orderer" aria-labelledby="ortitle">
+  <form id="orderform">
+    <div class="sheet-head"><h2 id="ortitle">Classer les rayons</h2><button class="x" type="button" id="orclose" aria-label="Fermer">×</button></div>
+    <div class="sheet-body">
+      <p class="hint">Fais glisser chaque rayon par sa poignée, dans l'ordre où tu le croises au magasin. L'ordre vaut pour vous deux.</p>
+      <ul class="order" id="orlist"></ul>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn dark" type="submit">Enregistrer l'ordre</button>
+      <button class="btn ghost" type="button" id="orreset">Revenir à l'ordre de départ</button>
+    </div>
+  </form>
+</dialog>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo" type="button">Annuler</button></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
-<script type="module" src="app.js?v=20261107202825"></script>
+<script type="module" src="app.js?v=20261107204326"></script>
 </body>
 </html>
