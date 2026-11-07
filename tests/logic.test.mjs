@@ -1,6 +1,6 @@
 // Tests de la logique pure : node tests/logic.test.mjs
 import assert from "node:assert/strict";
-import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every, pickEmoji, cleanName, EMOJI_CHOICES } from "../logic.js";
+import { DAY, guessRayon, emojiFor, parseInput, slug, cadence, fromRow, toRow, every, pickEmoji, cleanName, EMOJI_CHOICES, allRayons, rayonFromRow, cleanLabel, keywordEmoji, COLORS } from "../logic.js";
 
 const now = Date.UTC(2026, 9, 31);
 let n = 0;
@@ -49,6 +49,24 @@ t("fiche produit", () => {
   assert.equal(cleanName("   "), "");
   assert.ok(EMOJI_CHOICES.includes("🧺") && EMOJI_CHOICES.includes("🛒"));
   assert.equal(new Set(EMOJI_CHOICES).size, EMOJI_CHOICES.length);
+});
+
+t("rayons créés", () => {
+  const ids = allRayons([
+    { id: "c-apero", label: "Apéro", emoji: "🥂", color: "pink", position: 2 },
+    { id: "c-bebe", label: "Bébé", emoji: "🍼", color: "sky", position: 1 },
+  ]).map((r) => r.id);
+  assert.equal(ids.length, 13);
+  assert.deepEqual(ids.slice(-3), ["c-bebe", "c-apero", "autre"]);
+  assert.equal(allRayons().length, 11);
+  assert.equal(new Set(allRayons().map((r) => r.color)).size, COLORS.length);
+  const r = rayonFromRow({ id: "c-x", label: "X", emoji: null, color: "fuchsia", position: "5" });
+  assert.equal(r.emoji, "🛒");
+  assert.equal(r.color, "grey");
+  assert.equal(r.position, 5);
+  assert.equal(cleanLabel("  produits   pour le chat et le chien, en vrac "), "Produits pour le chat et le ch");
+  assert.equal(keywordEmoji("Couches taille 3"), null);
+  assert.equal(keywordEmoji("Lait"), "🥛");
 });
 
 t("identifiants stables", () => {

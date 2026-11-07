@@ -78,10 +78,43 @@ export function cleanName(raw) {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
 }
 
-export function emojiFor(name, rayon) {
+// Emoji reconnu d'après le nom du produit, ou null.
+export function keywordEmoji(name) {
   const n = " " + norm(name).replace(/[^a-z0-9 -]/g, " ") + " ";
   for (const [kw, emoji] of EMOJI_LIST) if (n.includes(" " + kw)) return emoji;
-  return RAYON_EMOJI[rayon] || RAYON_EMOJI.autre;
+  return null;
+}
+
+export function emojiFor(name, rayon) {
+  return keywordEmoji(name) || RAYON_EMOJI[rayon] || RAYON_EMOJI.autre;
+}
+
+// ---------- Rayons créés à la main ----------
+// 11 couleurs, une par rayon de base, réutilisables pour les rayons créés.
+export const COLORS = ["green", "yellow", "lavender", "pink", "orange", "sky", "blue", "teal", "lime", "lilac", "grey"];
+const BASE_COLOR = {
+  "fruits-legumes": "green", "boulangerie": "yellow", "cremerie": "lavender", "boucherie": "pink", "epicerie-salee": "orange",
+  "epicerie-sucree": "sky", "surgeles": "blue", "boissons": "teal", "hygiene": "lime", "entretien": "lilac", "autre": "grey",
+};
+
+// Ordre d'affichage : rayons de base, puis rayons créés (du plus ancien au plus récent), puis "Autre".
+export function allRayons(custom = []) {
+  const base = RAYONS.map(([id, label]) => ({ id, label, emoji: RAYON_EMOJI[id], color: BASE_COLOR[id], custom: false }));
+  const extra = [...custom]
+    .sort((a, b) => (a.position || 0) - (b.position || 0) || a.label.localeCompare(b.label, "fr"))
+    .map((r) => ({ ...r, custom: true }));
+  return [...base.slice(0, -1), ...extra, base[base.length - 1]];
+}
+
+export function rayonFromRow(r) {
+  return {
+    id: r.id, label: r.label, emoji: r.emoji || RAYON_EMOJI.autre,
+    color: COLORS.includes(r.color) ? r.color : "grey", position: r.position == null ? 0 : Number(r.position),
+  };
+}
+
+export function cleanLabel(raw) {
+  return cleanName(raw).slice(0, 30).trim();
 }
 
 export function norm(s) {

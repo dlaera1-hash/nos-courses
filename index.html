@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261107185134">
+  <link rel="stylesheet" href="style.css?v=20261107202825">
 </head>
 <body>
 
@@ -72,22 +72,47 @@
 <dialog class="sheet" id="editor" aria-labelledby="edtitle">
   <form id="editform" autocomplete="off">
     <div class="sheet-head"><h2 id="edtitle">Modifier le produit</h2><button class="x" type="button" id="edclose" aria-label="Fermer" autofocus>×</button></div>
-    <label class="hint" for="edname">Nom</label>
-    <input class="field" id="edname" type="text" maxlength="60" required enterkeyhint="done">
-    <div class="hint" id="edemojilabel">Emoji</div>
-    <div class="emogrid" role="radiogroup" aria-labelledby="edemojilabel" id="edemojis"></div>
-    <input class="field" id="edemoji" type="text" maxlength="16" placeholder="Ou tape un emoji" aria-label="Emoji personnalisé">
-    <div class="hint" id="edrayonlabel">Rayon</div>
-    <div class="pills" role="radiogroup" aria-labelledby="edrayonlabel" id="edrayons"></div>
-    <label class="hint" for="ednote">Détails</label>
-    <textarea class="field area" id="ednote" rows="2" maxlength="200" placeholder="Marque, taille, bio, pour quelle recette…"></textarea>
-    <p class="status" id="edstatus"></p>
-    <button class="btn dark" type="submit">Enregistrer</button>
+    <div class="sheet-body">
+      <label class="hint" for="edname">Nom</label>
+      <input class="field" id="edname" type="text" maxlength="60" required enterkeyhint="done">
+      <div class="hint" id="edemojilabel">Emoji</div>
+      <div class="emogrid" role="radiogroup" aria-labelledby="edemojilabel" id="edemojis"></div>
+      <input class="field" id="edemoji" type="text" maxlength="16" placeholder="Ou tape un emoji" aria-label="Emoji personnalisé">
+      <div class="hint" id="edrayonlabel">Rayon</div>
+      <div class="pills" role="radiogroup" aria-labelledby="edrayonlabel" id="edrayons"></div>
+      <div class="minis"><button class="mini" type="button" id="newrayon">+ Nouveau rayon</button><button class="mini" type="button" id="editrayon" hidden>Modifier ce rayon</button></div>
+      <label class="hint" for="ednote">Détails</label>
+      <textarea class="field area" id="ednote" rows="2" maxlength="200" placeholder="Marque, taille, bio, pour quelle recette…"></textarea>
+      <p class="status" id="edstatus"></p>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn dark" type="submit">Enregistrer</button>
+      <button class="btn ghost" type="button" id="edremove">Retirer de la liste</button>
+    </div>
+  </form>
+</dialog>
+<dialog class="sheet" id="rayoned" aria-labelledby="rytitle">
+  <form id="rayform" autocomplete="off">
+    <div class="sheet-head"><h2 id="rytitle">Nouveau rayon</h2><button class="x" type="button" id="ryclose" aria-label="Fermer">×</button></div>
+    <div class="sheet-body">
+      <label class="hint" for="ryname">Nom du rayon</label>
+      <input class="field" id="ryname" type="text" maxlength="30" required enterkeyhint="done" placeholder="Bébé, Animaux, Apéro…">
+      <label class="hint" for="ryemoji">Emoji</label>
+      <input class="field" id="ryemoji" type="text" maxlength="16" placeholder="Tape un emoji ou choisis-en un">
+      <div class="quick" id="ryquick"></div>
+      <div class="hint" id="rycolorlabel">Couleur</div>
+      <div class="swatches" role="radiogroup" aria-labelledby="rycolorlabel" id="rycolors"></div>
+      <p class="status" id="rystatus"></p>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn dark" type="submit" id="rysave">Créer le rayon</button>
+      <button class="btn ghost danger" type="button" id="rydelete" hidden>Supprimer ce rayon</button>
+    </div>
   </form>
 </dialog>
 <div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo" type="button">Annuler</button></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
-<script type="module" src="app.js?v=20261107185134"></script>
+<script type="module" src="app.js?v=20261107202825"></script>
 </body>
 </html>

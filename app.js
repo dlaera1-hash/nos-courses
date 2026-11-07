@@ -1,24 +1,31 @@
 // Écran et synchronisation avec Supabase.
-import { DAY, RAYONS, RAYON_EMOJI, EMOJI_CHOICES, guessRayon, emojiFor, pickEmoji, cleanName, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261107185134";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261107185134";
+import { DAY, COLORS, EMOJI_CHOICES, allRayons, rayonFromRow, cleanLabel, guessRayon, keywordEmoji, pickEmoji, cleanName, norm, slug, parseInput, cadence, every, fromRow, toRow } from "./logic.js?v=20261107202825";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261107202825";
 
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const qtyTag = (p) => (p.qty ? `<span class="qty">×${p.qty}</span>` : "");
+// À 1, seul le + s'affiche : le nom du produit garde la place.
 const stepper = (p) => {
   const q = p.qty || 1;
-  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" type="button" aria-label="Diminuer la quantité de ${esc(p.name)}"${q <= 1 ? " disabled" : ""}>−</button><b aria-label="Quantité">${q}</b><button data-act="inc" data-id="${esc(p.id)}" type="button" aria-label="Augmenter la quantité de ${esc(p.name)}">+</button></span>`;
+  const plus = `<button data-act="inc" data-id="${esc(p.id)}" type="button" aria-label="Augmenter la quantité de ${esc(p.name)}">+</button>`;
+  if (q <= 1) return `<span class="step one">${plus}</span>`;
+  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" type="button" aria-label="Diminuer la quantité de ${esc(p.name)}">−</button><b aria-label="Quantité">${q}</b>${plus}</span>`;
 };
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
-const emojiOf = (p) => p.emoji || emojiFor(p.name, p.rayon);
+// Rayons de base et rayons créés, dans l'ordre de la liste. Un rayon inconnu (supprimé ailleurs) devient "Autre".
+const rayons = () => allRayons(state.rayons.values());
+const rayonOf = (id) => rayons().find((r) => r.id === id) || rayons().find((r) => r.id === "autre");
+const autoEmoji = (name, rayonId) => keywordEmoji(name) || rayonOf(rayonId).emoji;
+const emojiOf = (p) => p.emoji || autoEmoji(p.name, p.rayon);
 const emo = (p) => `<span class="emo" aria-hidden="true">${emojiOf(p)}</span>`;
 const note = (p) => (p.note ? `<small class="note">${esc(p.note)}</small>` : "");
 const byKey = (name) => { const k = slug(name); return [...state.items.values()].find((p) => slug(p.name) === k); };
 const byName = (a, b) => a.name.localeCompare(b.name, "fr");
 
-const state = { items: new Map(), loaded: false, channel: null, started: false };
+const state = { items: new Map(), rayons: new Map(), loaded: false, channel: null, started: false };
 
 // ---------- Supabase ----------
 const sb = SUPABASE_URL && SUPABASE_KEY && window.supabase
@@ -77,9 +84,11 @@ $("logout").addEventListener("click", async () => { await sb.auth.signOut(); });
 
 // ---------- Données ----------
 async function loadAll() {
-  const { data, error } = await sb.from("items").select("*");
+  const [{ data, error }, rays] = await Promise.all([sb.from("items").select("*"), sb.from("rayons").select("*")]);
   if (error) { setStatus("La liste ne répond pas. Vérifie ta connexion.", true); return; }
   state.items = new Map(data.map((r) => { const p = fromRow(r); return [p.id, p]; }));
+  // Sans la table des rayons, l'appli garde simplement les rayons de base.
+  if (!rays.error) state.rayons = new Map(rays.data.map((r) => { const x = rayonFromRow(r); return [x.id, x]; }));
   state.loaded = true;
   if (!data.length) checkAccessHint();
   render();
@@ -98,6 +107,11 @@ function subscribe() {
       if (payload.eventType === "DELETE") state.items.delete(payload.old.id);
       else { const p = fromRow(payload.new); state.items.set(p.id, p); }
       render();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "rayons" }, (payload) => {
+      if (payload.eventType === "DELETE") state.rayons.delete(payload.old.id);
+      else { const r = rayonFromRow(payload.new); state.rayons.set(r.id, r); }
+      render(); if ($("editor").open) renderPills(checkedRayon());
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") setStatus("");
@@ -152,6 +166,11 @@ function addByName(raw) {
   });
 }
 
+function removeFromList(p) {
+  setFields(p.id, { onList: false, inCart: false, qty: null });
+  toast(`${p.name} retiré`, () => setFields(p.id, { onList: true, qty: p.qty || null }));
+}
+
 function finishShopping() {
   const now = Date.now();
   const bought = [...state.items.values()].filter((p) => p.onList && p.inCart);
@@ -188,10 +207,11 @@ function render() {
   } else if (!onList.length) {
     $("list").innerHTML = `<section class="block empty calm"><h2>Rien à acheter</h2><p>Ajoute un produit en haut. Tes anciens produits gardent leur rayon, leur emoji et leurs détails.</p></section>`;
   } else {
-    $("list").innerHTML = RAYONS.map(([r, label]) => {
-      const items = onList.filter((p) => (p.rayon || "autre") === r).sort(byName);
+    $("list").innerHTML = rayons().map((r) => {
+      const items = onList.filter((p) => rayonOf(p.rayon).id === r.id).sort(byName);
       if (!items.length) return "";
-      return `<section class="block r-${r}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</h2><span class="n">${items.length}</span></div><ul>${items.map((p) => `<li class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}<span class="txt">${esc(p.name)}${note(p)}</span></span></button><button class="edit" data-act="edit" data-id="${esc(p.id)}" type="button" aria-label="Modifier ${esc(p.name)}">${PEN}</button>${stepper(p)}<button class="x" data-act="remove" data-id="${esc(p.id)}" type="button" aria-label="Retirer ${esc(p.name)} de la liste">×</button></li>`).join("")}</ul></section>`;
+      const tools = r.custom ? `<button class="edit head" data-rid="${esc(r.id)}" type="button" aria-label="Modifier le rayon ${esc(r.label)}">${PEN}</button>` : "";
+      return `<section class="block col-${r.color}"><div class="block-head"><h2><span class="emo" aria-hidden="true">${esc(r.emoji)}</span>${esc(r.label)}</h2><span class="tools">${tools}<span class="n">${items.length}</span></span></div><ul>${items.map((p) => `<li class="swipe" data-id="${esc(p.id)}"><div class="row"><button class="tick" data-act="cart" data-id="${esc(p.id)}" type="button"><span class="box">${CHECK}</span><span class="label">${emo(p)}<span class="txt">${esc(p.name)}${note(p)}</span></span></button><button class="edit" data-act="edit" data-id="${esc(p.id)}" type="button" aria-label="Modifier ${esc(p.name)}">${PEN}</button>${stepper(p)}</div></li>`).join("")}</ul></section>`;
     }).join("");
   }
 
@@ -213,6 +233,8 @@ $("toastundo").addEventListener("click", () => { if (undoFn) undoFn(); $("toast"
 
 // ---------- Interactions ----------
 document.addEventListener("click", (e) => {
+  const rb = e.target.closest("[data-rid]");
+  if (rb) { const r = state.rayons.get(rb.dataset.rid); if (r) openRayon(r); return; }
   const b = e.target.closest("[data-act]");
   if (!b) return;
   const { id, act } = b.dataset;
@@ -224,10 +246,7 @@ document.addEventListener("click", (e) => {
   else if (act === "edit") openEditor(p);
   else if (act === "inc") setFields(id, { qty: Math.min(99, (p.qty || 1) + 1) });
   else if (act === "dec") { const q = (p.qty || 1) - 1; setFields(id, { qty: q > 1 ? q : null }); }
-  else if (act === "remove") {
-    setFields(id, { onList: false, inCart: false, qty: null });
-    toast(`${p.name} retiré`, () => setFields(id, { onList: true, qty: p.qty || null }));
-  } else if (act === "snooze") {
+  else if (act === "snooze") {
     const c = cadence(p, Date.now());
     setFields(id, { snoozeUntil: Date.now() + Math.max(2, (c ? c.median : 7) / 2) * DAY });
   }
@@ -240,9 +259,80 @@ $("addform").addEventListener("submit", (e) => {
 });
 $("finish").addEventListener("click", finishShopping);
 
+// ---------- Glisser une ligne vers la gauche pour la retirer ----------
+let drag = null, swallowClick = false;
+const SWIPE = 0.35; // part de la largeur à dépasser pour retirer
+$("list").addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const li = e.target.closest("li.swipe");
+  if (!li) return;
+  drag = { li, row: li.firstElementChild, id: li.dataset.id, x: e.clientX, y: e.clientY, dx: 0, on: false, pid: e.pointerId };
+});
+$("list").addEventListener("pointermove", (e) => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { drag = null; return; } // on fait défiler la page
+    if (dx > -12 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    drag.on = true;
+    drag.li.classList.add("swiping");
+    try { drag.li.setPointerCapture(e.pointerId); } catch {}
+  }
+  drag.dx = Math.min(0, dx);
+  drag.row.style.transform = `translateX(${drag.dx}px)`;
+  drag.li.classList.toggle("armed", drag.dx < -drag.li.offsetWidth * SWIPE);
+});
+function endDrag(cancel) {
+  const d = drag; drag = null;
+  if (!d || !d.on) return;
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 350);
+  const go = !cancel && d.dx < -d.li.offsetWidth * SWIPE;
+  d.row.style.transition = "transform .18s ease-out";
+  d.row.style.transform = go ? "translateX(-110%)" : "";
+  setTimeout(() => {
+    if (go) { const p = state.items.get(d.id); if (p) removeFromList(p); }
+    else { d.row.style.transition = ""; d.li.classList.remove("swiping", "armed"); }
+  }, 180);
+}
+$("list").addEventListener("pointerup", () => endDrag(false));
+$("list").addEventListener("pointercancel", () => endDrag(true));
+// Le doigt qui vient de glisser ne doit pas aussi cocher le produit.
+document.addEventListener("click", (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
+
+// ---------- Fiches : hauteur calée sur la partie visible de l'écran (barres de Safari, clavier) ----------
+const vv = window.visualViewport;
+function fitSheets() {
+  if (!vv) return;
+  const root = document.documentElement.style;
+  root.setProperty("--vvh", `${vv.height}px`);
+  root.setProperty("--kb", `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+}
+if (vv) { vv.addEventListener("resize", fitSheets); vv.addEventListener("scroll", fitSheets); fitSheets(); }
+function openSheet(d) { fitSheets(); d.showModal(); const body = d.querySelector(".sheet-body"); if (body) body.scrollTop = 0; }
+// Fermer seulement sur le fond grisé, pas dans les marges de la fiche.
+function closeOnBackdrop(d, close) {
+  d.addEventListener("click", (e) => {
+    if (e.target !== d) return;
+    const r = d.getBoundingClientRect();
+    if (e.clientY < r.top || e.clientY > r.bottom || e.clientX < r.left || e.clientX > r.right) close();
+  });
+}
+
 // ---------- Fiche produit : nom, emoji, rayon, détails ----------
 let editingId = null;
 const edform = $("editform");
+const checkedRayon = () => { const c = edform.querySelector('input[name="rayon"]:checked'); return c ? c.value : "autre"; };
+
+function renderPills(selected) {
+  const sel = rayonOf(selected).id;
+  $("edrayons").innerHTML = rayons().map((r) => `<label class="pill col-${r.color}"><input type="radio" name="rayon" value="${esc(r.id)}"${r.id === sel ? " checked" : ""}><span class="emo" aria-hidden="true">${esc(r.emoji)}</span>${esc(r.label)}</label>`).join("");
+  syncRayonTools();
+}
+function syncRayonTools() {
+  const r = state.rayons.get(checkedRayon());
+  $("editrayon").hidden = !r;
+  if (r) $("editrayon").textContent = `Modifier « ${r.label} »`;
+}
 
 function openEditor(p) {
   editingId = p.id;
@@ -250,33 +340,34 @@ function openEditor(p) {
   $("ednote").value = p.note || "";
   const custom = p.emoji && !EMOJI_CHOICES.includes(p.emoji) ? p.emoji : "";
   $("edemoji").value = custom;
-  $("edrayons").innerHTML = RAYONS.map(([r, label]) => `<label class="pill r-${r}"><input type="radio" name="rayon" value="${r}"${(p.rayon || "autre") === r ? " checked" : ""}><span class="emo" aria-hidden="true">${RAYON_EMOJI[r]}</span>${label}</label>`).join("");
+  renderPills(p.rayon);
   const choice = (e, v, label) => `<label class="emochoice"><input type="radio" name="emoji" value="${v}"${(p.emoji || "") === v && !custom ? " checked" : ""}><span aria-label="${label}">${e}</span></label>`;
-  $("edemojis").innerHTML = choice(`<i id="edauto">${emojiFor(p.name, p.rayon)}</i><b>auto</b>`, "", "Emoji automatique")
+  $("edemojis").innerHTML = choice(`<i id="edauto">${autoEmoji(p.name, p.rayon)}</i><b>auto</b>`, "", "Emoji automatique")
     + EMOJI_CHOICES.map((e) => choice(e, e, e)).join("");
+  $("edremove").hidden = !p.onList;
   edStatus("");
-  $("editor").showModal();
+  openSheet($("editor"));
 }
 function closeEditor() { editingId = null; $("editor").close(); }
 function edStatus(msg) { const s = $("edstatus"); s.textContent = msg; s.classList.toggle("warn", !!msg); }
-function refreshAuto() {
-  const r = edform.elements.namedItem("rayon").value || "autre";
-  const a = $("edauto"); if (a) a.textContent = emojiFor($("edname").value, r);
-}
+function refreshAuto() { const a = $("edauto"); if (a) a.textContent = autoEmoji($("edname").value, checkedRayon()); }
 
 $("edclose").addEventListener("click", closeEditor);
-// Fermer seulement sur le fond grisé, pas dans les marges de la fiche.
-$("editor").addEventListener("click", (e) => {
-  if (e.target !== $("editor")) return;
-  const r = $("editor").getBoundingClientRect();
-  if (e.clientY < r.top || e.clientY > r.bottom || e.clientX < r.left || e.clientX > r.right) closeEditor();
-});
+closeOnBackdrop($("editor"), closeEditor);
 $("editor").addEventListener("close", () => { editingId = null; });
 edform.addEventListener("input", (e) => {
   if (e.target.id === "edemoji" && e.target.value) for (const r of edform.querySelectorAll('input[name="emoji"]')) r.checked = false;
   if (e.target.name === "emoji") $("edemoji").value = "";
+  if (e.target.name === "rayon") syncRayonTools();
   if (e.target.id === "edname" || e.target.name === "rayon") refreshAuto();
 });
+$("edremove").addEventListener("click", () => {
+  const p = editingId && state.items.get(editingId);
+  closeEditor();
+  if (p) removeFromList(p);
+});
+$("newrayon").addEventListener("click", () => openRayon(null));
+$("editrayon").addEventListener("click", () => { const r = state.rayons.get(checkedRayon()); if (r) openRayon(r); });
 edform.addEventListener("submit", (e) => {
   e.preventDefault();
   const p = editingId && state.items.get(editingId);
@@ -289,10 +380,91 @@ edform.addEventListener("submit", (e) => {
   const custom = pickEmoji(typed);
   if (typed && !custom) { edStatus("Tape un emoji, pas une lettre."); return; }
   const emoji = custom || edform.elements.namedItem("emoji").value || null;
-  const rayon = edform.elements.namedItem("rayon").value || p.rayon || "autre";
+  const rayon = checkedRayon();
   const detail = $("ednote").value.replace(/\s+/g, " ").trim().slice(0, 200) || null;
   setFields(p.id, { name, emoji, rayon, note: detail });
   closeEditor();
+});
+
+// ---------- Rayons créés à la main : nom, emoji, couleur ----------
+const QUICK = ["🍼", "🐾", "🥂", "🌱", "💊", "🎁", "🧸", "🍷", "🏠", "🌍", "🍣", "🥗", "🧁", "🔋", "✏️", "🌸"];
+let rayonEditing = null; // null = création
+let deleteArmed = false;
+const ryform = $("rayform");
+
+function openRayon(r) {
+  rayonEditing = r ? r.id : null;
+  deleteArmed = false;
+  $("rytitle").textContent = r ? "Modifier le rayon" : "Nouveau rayon";
+  $("rysave").textContent = r ? "Enregistrer" : "Créer le rayon";
+  $("rydelete").hidden = !r;
+  $("rydelete").textContent = "Supprimer ce rayon";
+  $("ryname").value = r ? r.label : "";
+  $("ryemoji").value = r ? r.emoji : "";
+  $("ryquick").innerHTML = QUICK.map((e) => `<button type="button" data-emoji="${e}" aria-label="Choisir ${e}">${e}</button>`).join("");
+  // Couleur proposée : une que les autres rayons créés n'ont pas encore.
+  const used = new Set([...state.rayons.values()].map((x) => x.color));
+  const color = r ? r.color : COLORS.find((c) => !used.has(c)) || COLORS[state.rayons.size % COLORS.length];
+  $("rycolors").innerHTML = COLORS.map((c) => `<label class="swatch col-${c}"><input type="radio" name="color" value="${c}"${c === color ? " checked" : ""} aria-label="Couleur ${c}"></label>`).join("");
+  ryStatus("");
+  openSheet($("rayoned"));
+}
+function closeRayon() { $("rayoned").close(); }
+function ryStatus(msg) { const s = $("rystatus"); s.textContent = msg; s.classList.toggle("warn", !!msg); }
+
+$("ryclose").addEventListener("click", closeRayon);
+closeOnBackdrop($("rayoned"), closeRayon);
+$("ryquick").addEventListener("click", (e) => { const b = e.target.closest("[data-emoji]"); if (b) $("ryemoji").value = b.dataset.emoji; });
+
+ryform.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const label = cleanLabel($("ryname").value);
+  if (!label) { ryStatus("Donne un nom au rayon."); return; }
+  const same = rayons().find((x) => norm(x.label) === norm(label) && x.id !== rayonEditing);
+  if (same) { ryStatus(`Le rayon « ${same.label} » existe déjà.`); return; }
+  const typed = $("ryemoji").value.trim();
+  const emoji = pickEmoji(typed);
+  if (typed && !emoji) { ryStatus("Tape un emoji, pas une lettre."); return; }
+  const color = ryform.elements.namedItem("color").value || "grey";
+  let id = rayonEditing;
+  if (id) {
+    const fields = { label, emoji: emoji || "🛒", color };
+    state.rayons.set(id, { ...state.rayons.get(id), ...fields });
+    write(`rayon:${id}`, () => sb.from("rayons").update(fields).eq("id", id));
+  } else {
+    const key = "c-" + slug(label).slice(0, 40);
+    id = key;
+    while (rayons().some((x) => x.id === id)) id = `${key}-${Math.random().toString(36).slice(2, 6)}`;
+    const row = { id, label, emoji: emoji || "🛒", color, position: Date.now() };
+    state.rayons.set(id, rayonFromRow(row));
+    write(`rayon:${id}`, () => sb.from("rayons").insert(row));
+  }
+  closeRayon();
+  render();
+  // La fiche produit reste ouverte dessous : le rayon créé ou modifié y est sélectionné.
+  if ($("editor").open) { renderPills(id); refreshAuto(); }
+});
+
+// Suppression en 2 temps. Les produits du rayon passent dans "Autre", rien n'est perdu.
+$("rydelete").addEventListener("click", () => {
+  const id = rayonEditing;
+  if (!id) return;
+  if (!deleteArmed) {
+    deleteArmed = true;
+    $("rydelete").textContent = "Confirmer : les produits iront dans « Autre »";
+    return;
+  }
+  const now = Date.now();
+  for (const p of state.items.values()) if (p.rayon === id) state.items.set(p.id, { ...p, rayon: "autre", updatedAt: now });
+  state.rayons.delete(id);
+  write(`rayon:${id}`, async () => {
+    const moved = await sb.from("items").update({ rayon: "autre", updated_at: now }).eq("rayon", id);
+    if (moved.error) return moved;
+    return sb.from("rayons").delete().eq("id", id);
+  });
+  closeRayon();
+  render();
+  if ($("editor").open) { renderPills(checkedRayon()); refreshAuto(); }
 });
 
 // ---------- Démarrage ----------
